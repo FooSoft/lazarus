@@ -1,0 +1,3 @@
+[submodule "formats/mpq/stormlib"]
+	path = formats/mpq/stormlib
+	url = https://github.com/ladislav-zezula/StormLib.git
