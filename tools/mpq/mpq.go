@@ -6,25 +6,19 @@ import (
 	"io"
 	"os"
 	"path"
-	"strings"
 
 	"github.com/FooSoft/lazarus/formats/mpq"
 	"github.com/bmatcuk/doublestar"
 )
 
 func list(mpqPath, filter string) error {
-	arch, err := mpq.New(mpqPath)
+	arch, err := mpq.NewFromFile(mpqPath)
 	if err != nil {
 		return err
 	}
 	defer arch.Close()
 
-	resPaths, err := arch.GetPaths()
-	if err != nil {
-		return err
-	}
-
-	for _, resPath := range resPaths {
+	for _, resPath := range arch.GetPaths() {
 		match, err := doublestar.Match(filter, resPath)
 		if err != nil {
 			return err
@@ -38,19 +32,14 @@ func list(mpqPath, filter string) error {
 	return nil
 }
 
-func extract(mpqPath, filter, targetDir string, lowercase bool) error {
-	arch, err := mpq.New(mpqPath)
+func extract(mpqPath, filter, targetDir string) error {
+	arch, err := mpq.NewFromFile(mpqPath)
 	if err != nil {
 		return err
 	}
 	defer arch.Close()
 
-	resPaths, err := arch.GetPaths()
-	if err != nil {
-		return err
-	}
-
-	for _, resPath := range resPaths {
+	for _, resPath := range arch.GetPaths() {
 		match, err := doublestar.Match(filter, resPath)
 		if err != nil {
 			return err
@@ -68,7 +57,7 @@ func extract(mpqPath, filter, targetDir string, lowercase bool) error {
 		}
 		defer resFile.Close()
 
-		sysPath := path.Join(targetDir, strings.ToLower(resPath))
+		sysPath := path.Join(targetDir, resPath)
 		if err := os.MkdirAll(path.Dir(sysPath), 0777); err != nil {
 			return err
 		}
@@ -93,7 +82,6 @@ func main() {
 	var (
 		filter    = flag.String("filter", "**", "wildcard file filter")
 		targetDir = flag.String("target", ".", "target directory")
-		lowercase = flag.Bool("lowercase", true, "extract with lowercase paths")
 	)
 
 	flag.Usage = func() {
@@ -118,7 +106,7 @@ func main() {
 		}
 	case "extract":
 		for i := 1; i < flag.NArg(); i++ {
-			if err := extract(flag.Arg(i), *filter, *targetDir, *lowercase); err != nil {
+			if err := extract(flag.Arg(i), *filter, *targetDir); err != nil {
 				fmt.Fprintln(os.Stderr, err)
 			}
 		}

@@ -29,23 +29,28 @@ import (
 
 type File interface {
 	Read(data []byte) (int, error)
-	GetSize() (int, error)
+	GetSize() int
 	Close() error
 }
 
 type Archive interface {
 	OpenFile(path string) (File, error)
-	GetPaths() ([]string, error)
+	GetPaths() []string
 	Close() error
 }
 
-func New(path string) (Archive, error) {
+func NewFromFile(path string) (Archive, error) {
 	cs := C.CString(path)
 	defer C.free(unsafe.Pointer(cs))
 
 	a := new(archive)
 	if result := C.SFileOpenArchive(cs, 0, 0, &a.handle); result == 0 {
 		return nil, fmt.Errorf("failed to open archive (%d)", getLastError())
+	}
+
+	if err := a.buildPathMap(); err != nil {
+		a.Close()
+		return nil, err
 	}
 
 	return a, nil
@@ -58,12 +63,7 @@ type file struct {
 }
 
 func (f *file) Read(data []byte) (int, error) {
-	size, err := f.GetSize()
-	if err != nil {
-		return 0, err
-	}
-
-	bytesRemaining := size - f.offset
+	bytesRemaining := f.size - f.offset
 	if bytesRemaining == 0 {
 		return 0, io.EOF
 	}
@@ -82,18 +82,8 @@ func (f *file) Read(data []byte) (int, error) {
 	return bytesRead, nil
 }
 
-func (f *file) GetSize() (int, error) {
-	if f.size != math.MaxUint32 {
-		return f.size, nil
-	}
-
-	size := int(C.SFileGetFileSize(f.handle, nil))
-	if size == -1 {
-		return 0, fmt.Errorf("failed to get file size (%d)", getLastError())
-	}
-
-	f.size = size
-	return size, nil
+func (f *file) GetSize() int {
+	return f.size
 }
 
 func (f *file) Close() error {
@@ -108,9 +98,19 @@ func (f *file) Close() error {
 	return nil
 }
 
+func (f *file) buildSize() error {
+	size := int(C.SFileGetFileSize(f.handle, nil))
+	if size == -1 {
+		return fmt.Errorf("failed to get file size (%d)", getLastError())
+	}
+
+	f.size = size
+	return nil
+}
+
 type archive struct {
 	handle unsafe.Pointer
-	paths  []string
+	paths  map[string]string
 }
 
 func (a *archive) Close() error {
@@ -125,7 +125,11 @@ func (a *archive) Close() error {
 }
 
 func (a *archive) OpenFile(path string) (File, error) {
-	cs := C.CString(strings.Replace(path, string(os.PathSeparator), "\\", -1))
+	if pathInt, ok := a.paths[path]; ok {
+		path = pathInt
+	}
+
+	cs := C.CString(path)
 	defer C.free(unsafe.Pointer(cs))
 
 	file := &file{size: math.MaxUint32}
@@ -133,34 +137,51 @@ func (a *archive) OpenFile(path string) (File, error) {
 		return nil, fmt.Errorf("failed to open file (%d)", getLastError())
 	}
 
+	if err := file.buildSize(); err != nil {
+		file.Close()
+		return nil, err
+	}
+
 	return file, nil
 }
 
-func (a *archive) GetPaths() ([]string, error) {
-	if len(a.paths) > 0 {
-		return a.paths, nil
+func (a *archive) GetPaths() []string {
+	var extPaths []string
+	for extPath := range a.paths {
+		extPaths = append(extPaths, extPath)
 	}
 
+	return extPaths
+}
+
+func (a *archive) buildPathMap() error {
 	f, err := a.OpenFile("(listfile)")
 	if err != nil {
-		return nil, err
+		return err
 	}
 	defer f.Close()
 
 	var buff bytes.Buffer
 	if _, err := io.Copy(&buff, f); err != nil {
-		return nil, err
+		return err
 	}
 
-	for _, line := range strings.Split(string(buff.Bytes()), "\r\n") {
-		line = strings.TrimSpace(line)
-		line = strings.Replace(line, "\\", string(os.PathSeparator), -1)
-		if len(line) > 0 {
-			a.paths = append(a.paths, line)
+	a.paths = make(map[string]string)
+
+	lines := strings.Split(string(buff.Bytes()), "\r\n")
+	for _, line := range lines {
+		pathInt := strings.TrimSpace(line)
+		if len(pathInt) > 0 {
+			pathExt := santizePath(pathInt)
+			a.paths[pathExt] = pathInt
 		}
 	}
 
-	return a.paths, nil
+	return nil
+}
+
+func santizePath(path string) string {
+	return strings.ToLower(strings.Replace(path, "\\", string(os.PathSeparator), -1))
 }
 
 func getLastError() uint {
