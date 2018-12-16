@@ -29,6 +29,7 @@ import (
 type File interface {
 	Read(data []byte) (int, error)
 	GetSize() (int, error)
+	Close() error
 }
 
 type Archive interface {
@@ -143,6 +144,7 @@ func (a *archive) GetPaths() ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer f.Close()
 
 	var buff bytes.Buffer
 	if _, err := io.Copy(&buff, f); err != nil {

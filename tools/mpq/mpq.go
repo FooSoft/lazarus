@@ -2,32 +2,124 @@ package main
 
 import (
 	"flag"
-	"log"
+	"fmt"
+	"io"
 	"os"
+	"path"
 
-	"github.com/FooSoft/lazarus/filesystem"
+	"github.com/FooSoft/lazarus/formats/mpq"
+	"github.com/bmatcuk/doublestar"
 )
 
+func list(mpqPath, filter string) error {
+	arch, err := mpq.New(mpqPath)
+	if err != nil {
+		return err
+	}
+	defer arch.Close()
+
+	resPaths, err := arch.GetPaths()
+	if err != nil {
+		return err
+	}
+
+	for _, resPath := range resPaths {
+		match, err := doublestar.Match(filter, resPath)
+		if err != nil {
+			return err
+		}
+
+		if match {
+			fmt.Println(resPath)
+		}
+	}
+
+	return nil
+}
+
+func extract(mpqPath, filter, targetDir string) error {
+	arch, err := mpq.New(mpqPath)
+	if err != nil {
+		return err
+	}
+	defer arch.Close()
+
+	resPaths, err := arch.GetPaths()
+	if err != nil {
+		return err
+	}
+
+	for _, resPath := range resPaths {
+		match, err := doublestar.Match(filter, resPath)
+		if err != nil {
+			return err
+		}
+
+		if !match {
+			continue
+		}
+
+		resFile, err := arch.OpenFile(resPath)
+		if err != nil {
+			return err
+		}
+		defer resFile.Close()
+
+		sysPath := path.Join(targetDir, resPath)
+		if err := os.MkdirAll(path.Dir(sysPath), 0777); err != nil {
+			return err
+		}
+
+		sysFile, err := os.Create(sysPath)
+		if err != nil {
+			return err
+		}
+		defer sysFile.Close()
+
+		if _, err := io.Copy(sysFile, resFile); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func main() {
-	// var (
-	// 	wildcard = flag.String("wildcard", "*.*", "wildcard filter")
-	// )
+	var (
+		filter    = flag.String("filter", "*.*", "wildcard file filter")
+		targetDir = flag.String("target", ".", "target directory")
+	)
+
+	flag.Usage = func() {
+		fmt.Fprintf(os.Stderr, "Usage: %s [options] command [files]\n", path.Base(os.Args[0]))
+		fmt.Fprintf(os.Stderr, "Parameters:\n\n")
+		flag.PrintDefaults()
+	}
+
 	flag.Parse()
 
-	if flag.NArg() == 0 {
-		flag.PrintDefaults()
+	if flag.NArg() < 1 {
+		flag.Usage()
 		os.Exit(2)
 	}
 
-	fs := filesystem.New()
-	if err := fs.Mount("", flag.Arg(0)); err != nil {
-		log.Fatal(err)
+	switch flag.Arg(0) {
+	case "list":
+		for i := 1; i < flag.NArg(); i++ {
+			if err := list(flag.Arg(i), *filter); err != nil {
+				fmt.Fprintln(os.Stderr)
+				os.Exit(1)
+			}
+		}
+	case "extract":
+		for i := 1; i < flag.NArg(); i++ {
+			if err := extract(flag.Arg(i), *filter, *targetDir); err != nil {
+				fmt.Fprintln(os.Stderr)
+				os.Exit(1)
+			}
+		}
+	default:
+		flag.Usage()
+		os.Exit(2)
 	}
-
-	paths, err := fs.List()
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	log.Print(paths)
 }
