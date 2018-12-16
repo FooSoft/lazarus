@@ -3,18 +3,18 @@ package mpq
 // #cgo LDFLAGS: -L./stormlib/ -lstorm -lz -lbz2 -lstdc++
 // #include <stdlib.h>
 // #define WINAPI
-// #define DWORD   		unsigned int
-// #define HANDLE  		void *
-// #define LPDWORD 		unsigned int *
+// #define DWORD unsigned int
+// #define HANDLE void *
+// #define LPDWORD unsigned int *
 // #define LPOVERLAPPED void *
-// #define TCHAR   		char
-// #define bool    		unsigned char
-// bool  WINAPI SFileOpenArchive(const TCHAR * szMpqName, DWORD dwPriority, DWORD dwFlags, HANDLE * phMpq);
-// bool  WINAPI SFileCloseArchive(HANDLE hMpq);
-// bool  WINAPI SFileOpenFileEx(HANDLE hMpq, const char * szFileName, DWORD dwSearchScope, HANDLE * phFile);
+// #define TCHAR char
+// #define bool unsigned char
+// bool WINAPI SFileOpenArchive(const TCHAR * szMpqName, DWORD dwPriority, DWORD dwFlags, HANDLE * phMpq);
+// bool WINAPI SFileCloseArchive(HANDLE hMpq);
+// bool WINAPI SFileOpenFileEx(HANDLE hMpq, const char * szFileName, DWORD dwSearchScope, HANDLE * phFile);
 // DWORD WINAPI SFileGetFileSize(HANDLE hFile, LPDWORD pdwFileSizeHigh);
-// bool  WINAPI SFileReadFile(HANDLE hFile, void * lpBuffer, DWORD dwToRead, LPDWORD pdwRead, LPOVERLAPPED lpOverlapped);
-// bool  WINAPI SFileCloseFile(HANDLE hFile);
+// bool WINAPI SFileReadFile(HANDLE hFile, void * lpBuffer, DWORD dwToRead, LPDWORD pdwRead, LPOVERLAPPED lpOverlapped);
+// bool WINAPI SFileCloseFile(HANDLE hFile);
 // DWORD GetLastError();
 import "C"
 import (
