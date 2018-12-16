@@ -86,7 +86,7 @@ func extract(mpqPath, filter, targetDir string) error {
 
 func main() {
 	var (
-		filter    = flag.String("filter", "*.*", "wildcard file filter")
+		filter    = flag.String("filter", "**", "wildcard file filter")
 		targetDir = flag.String("target", ".", "target directory")
 	)
 
@@ -107,14 +107,14 @@ func main() {
 	case "list":
 		for i := 1; i < flag.NArg(); i++ {
 			if err := list(flag.Arg(i), *filter); err != nil {
-				fmt.Fprintln(os.Stderr)
+				fmt.Fprintln(os.Stderr, err)
 				os.Exit(1)
 			}
 		}
 	case "extract":
 		for i := 1; i < flag.NArg(); i++ {
 			if err := extract(flag.Arg(i), *filter, *targetDir); err != nil {
-				fmt.Fprintln(os.Stderr)
+				fmt.Fprintln(os.Stderr, err)
 				os.Exit(1)
 			}
 		}

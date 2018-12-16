@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"os"
 	"strings"
 	"unsafe"
 )
@@ -124,7 +125,7 @@ func (a *archive) Close() error {
 }
 
 func (a *archive) OpenFile(path string) (File, error) {
-	cs := C.CString(path)
+	cs := C.CString(strings.Replace(path, string(os.PathSeparator), "\\", -1))
 	defer C.free(unsafe.Pointer(cs))
 
 	file := &file{size: math.MaxUint32}
@@ -153,6 +154,7 @@ func (a *archive) GetPaths() ([]string, error) {
 
 	for _, line := range strings.Split(string(buff.Bytes()), "\r\n") {
 		line = strings.TrimSpace(line)
+		line = strings.Replace(line, "\\", string(os.PathSeparator), -1)
 		if len(line) > 0 {
 			a.paths = append(a.paths, line)
 		}
