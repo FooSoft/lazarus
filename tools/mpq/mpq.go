@@ -59,6 +59,8 @@ func extract(mpqPath, filter, targetDir string) error {
 			continue
 		}
 
+		fmt.Println(resPath)
+
 		resFile, err := arch.OpenFile(resPath)
 		if err != nil {
 			return err
