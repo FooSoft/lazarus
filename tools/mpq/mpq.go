@@ -112,14 +112,12 @@ func main() {
 		for i := 1; i < flag.NArg(); i++ {
 			if err := list(flag.Arg(i), *filter); err != nil {
 				fmt.Fprintln(os.Stderr, err)
-				os.Exit(1)
 			}
 		}
 	case "extract":
 		for i := 1; i < flag.NArg(); i++ {
 			if err := extract(flag.Arg(i), *filter, *targetDir); err != nil {
 				fmt.Fprintln(os.Stderr, err)
-				os.Exit(1)
 			}
 		}
 	default:
