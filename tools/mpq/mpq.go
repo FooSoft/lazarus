@@ -76,11 +76,13 @@ func extract(mpqPath, filter, targetDir string) error {
 		if err != nil {
 			return err
 		}
-		defer sysFile.Close()
 
 		if _, err := io.Copy(sysFile, resFile); err != nil {
+			sysFile.Close()
 			return err
 		}
+
+		sysFile.Close()
 	}
 
 	return nil
