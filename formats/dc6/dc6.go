@@ -2,7 +2,6 @@ package dc6
 
 import (
 	"encoding/binary"
-
 	"io"
 
 	"github.com/FooSoft/lazarus/streaming"

@@ -28,7 +28,9 @@ func (w *writer) Write(data []byte) (int, error) {
 		return 0, errors.New("cannot write past end of buffer")
 	}
 
+	copy(w.data[w.offset:], data[:length])
 	w.offset += length
+
 	return length, nil
 }
 
