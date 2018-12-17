@@ -7,30 +7,24 @@ import (
 	"github.com/FooSoft/lazarus/streaming"
 )
 
-const (
-	FlagIsSerialized = 1 << iota
-	FlagIsLoadedInHw
-	FlagIs24Bits
-)
-
 type fileHeader struct {
-	Version      uint32
-	Flags        uint32
-	Format       uint32
-	SkipColor    uint32
-	DirCount     uint32
-	FramesPerDir uint32
+	Version         uint32
+	UnusedFlags     uint32
+	UnusedFormat    uint32
+	UnusedSkipColor uint32
+	DirCount        uint32
+	FramesPerDir    uint32
 }
 
 type frameHeader struct {
-	Flip      uint32
-	Width     uint32
-	Height    uint32
-	OffsetX   uint32
-	OffsetY   uint32
-	AllocSize uint32
-	NextBlock uint32
-	Length    uint32
+	Flip            uint32
+	Width           uint32
+	Height          uint32
+	OffsetX         uint32
+	OffsetY         uint32
+	UnusedAllocSize uint32
+	UnusedNextBlock uint32
+	Length          uint32
 }
 
 type Direction struct {
