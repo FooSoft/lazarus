@@ -1,9 +1,11 @@
 package dc6
 
 import (
-	"bytes"
 	"encoding/binary"
+
 	"io"
+
+	"github.com/FooSoft/lazarus/streaming"
 )
 
 const (
@@ -72,9 +74,9 @@ func New(reader io.ReadSeeker) (*Dc6, error) {
 			return nil, err
 		}
 
-		buff := bytes.NewBuffer(make([]byte, frameHeader.Width*frameHeader.Height))
-		// if err := extractFrame(reader, buff, frameHeader); err != nil {
-		if err := extractFrame(reader, nil, frameHeader); err != nil {
+		data := make([]byte, frameHeader.Width*frameHeader.Height)
+		writer := streaming.NewWriter(data)
+		if err := extractFrame(reader, writer, frameHeader); err != nil {
 			return nil, err
 		}
 
@@ -83,7 +85,7 @@ func New(reader io.ReadSeeker) (*Dc6, error) {
 			int(frameHeader.Height),
 			int(frameHeader.OffsetX),
 			int(frameHeader.OffsetY),
-			buff.Bytes(),
+			data,
 		}
 
 		sprite.Frames = append(sprite.Frames, frame)
