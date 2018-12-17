@@ -14,7 +14,7 @@ const (
 	FlagIs24Bits
 )
 
-type FileHeader struct {
+type fileHeader struct {
 	Version      uint32
 	Flags        uint32
 	Format       uint32
@@ -23,7 +23,7 @@ type FileHeader struct {
 	FramesPerDir uint32
 }
 
-type FrameHeader struct {
+type frameHeader struct {
 	Flip      uint32
 	Width     uint32
 	Height    uint32
@@ -34,6 +34,10 @@ type FrameHeader struct {
 	Length    uint32
 }
 
+type Direction struct {
+	Frames []Frame
+}
+
 type Frame struct {
 	Width   int
 	Height  int
@@ -42,20 +46,22 @@ type Frame struct {
 	Data    []byte
 }
 
-type Dc6 struct {
-	Frames []Frame
+type Sprite struct {
+	Directions []Direction
 }
 
-func New(reader io.ReadSeeker) (*Dc6, error) {
-	sprite := new(Dc6)
+func New(reader io.ReadSeeker) (*Sprite, error) {
+	sprite := new(Sprite)
 
-	var fileHeader FileHeader
-	if err := binary.Read(reader, binary.LittleEndian, &fileHeader); err != nil {
+	var fileHead fileHeader
+	if err := binary.Read(reader, binary.LittleEndian, &fileHead); err != nil {
 		return nil, err
 	}
 
+	frameCount := int(fileHead.DirCount * fileHead.FramesPerDir)
+
 	var frameOffsets []uint32
-	for i := 0; i < int(fileHeader.DirCount*fileHeader.FramesPerDir); i++ {
+	for i := 0; i < frameCount; i++ {
 		var frameOffset uint32
 		if err := binary.Read(reader, binary.LittleEndian, &frameOffset); err != nil {
 			return nil, err
@@ -64,37 +70,40 @@ func New(reader io.ReadSeeker) (*Dc6, error) {
 		frameOffsets = append(frameOffsets, frameOffset)
 	}
 
-	for _, frameOffset := range frameOffsets {
-		var frameHeader FrameHeader
-		if _, err := reader.Seek(int64(frameOffset), io.SeekStart); err != nil {
+	sprite.Directions = make([]Direction, fileHead.FramesPerDir)
+
+	for i := 0; i < frameCount; i++ {
+		var frameHead frameHeader
+		if _, err := reader.Seek(int64(frameOffsets[i]), io.SeekStart); err != nil {
 			return nil, err
 		}
 
-		if err := binary.Read(reader, binary.LittleEndian, &frameHeader); err != nil {
+		if err := binary.Read(reader, binary.LittleEndian, &frameHead); err != nil {
 			return nil, err
 		}
 
-		data := make([]byte, frameHeader.Width*frameHeader.Height)
+		data := make([]byte, frameHead.Width*frameHead.Height)
 		writer := streaming.NewWriter(data)
-		if err := extractFrame(reader, writer, frameHeader); err != nil {
+		if err := extractFrame(reader, writer, frameHead); err != nil {
 			return nil, err
 		}
 
 		frame := Frame{
-			int(frameHeader.Width),
-			int(frameHeader.Height),
-			int(frameHeader.OffsetX),
-			int(frameHeader.OffsetY),
+			int(frameHead.Width),
+			int(frameHead.Height),
+			int(frameHead.OffsetX),
+			int(frameHead.OffsetY),
 			data,
 		}
 
-		sprite.Frames = append(sprite.Frames, frame)
+		direction := &sprite.Directions[i/int(fileHead.FramesPerDir)]
+		direction.Frames = append(direction.Frames, frame)
 	}
 
 	return sprite, nil
 }
 
-func extractFrame(reader io.ReadSeeker, writer io.WriteSeeker, header FrameHeader) error {
+func extractFrame(reader io.ReadSeeker, writer io.WriteSeeker, header frameHeader) error {
 	var (
 		x uint32
 		y = header.Height - 1
