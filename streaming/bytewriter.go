@@ -52,5 +52,6 @@ func (w *writer) Seek(offset int64, whence int) (int64, error) {
 		return int64(w.offset), errors.New("cannot seek past end of buffer")
 	}
 
+	w.offset = result
 	return int64(w.offset), nil
 }

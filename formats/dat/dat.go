@@ -2,20 +2,30 @@ package dat
 
 import (
 	"encoding/binary"
+	imageColor "image/color"
 	"io"
-
-	"github.com/FooSoft/lazarus/math"
 )
 
 type Palette struct {
-	Colors [256]math.Color3b
+	Colors [256]imageColor.NRGBA
 }
 
-func NewFromReader(r io.Reader) (*Palette, error) {
-	p := new(Palette)
-	if err := binary.Read(r, binary.LittleEndian, p); err != nil {
+type color struct {
+	B byte
+	G byte
+	R byte
+}
+
+func NewFromReader(reader io.Reader) (*Palette, error) {
+	var colors [256]color
+	if err := binary.Read(reader, binary.LittleEndian, &colors); err != nil {
 		return nil, err
 	}
 
-	return p, nil
+	palette := new(Palette)
+	for i, color := range colors {
+		palette.Colors[i] = imageColor.NRGBA{color.R, color.G, color.B, 0xff}
+	}
+
+	return palette, nil
 }

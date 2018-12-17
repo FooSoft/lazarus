@@ -8,23 +8,23 @@ import (
 )
 
 type fileHeader struct {
-	Version         uint32
-	UnusedFlags     uint32
-	UnusedFormat    uint32
-	UnusedSkipColor uint32
-	DirCount        uint32
-	FramesPerDir    uint32
+	Version      uint32
+	_            uint32 // unused: flags
+	_            uint32 // unused: format
+	_            uint32 // unused: skipColor
+	DirCount     uint32
+	FramesPerDir uint32
 }
 
 type frameHeader struct {
-	Flip            uint32
-	Width           uint32
-	Height          uint32
-	OffsetX         uint32
-	OffsetY         uint32
-	UnusedAllocSize uint32
-	UnusedNextBlock uint32
-	Length          uint32
+	Flip    uint32
+	Width   uint32
+	Height  uint32
+	OffsetX uint32
+	OffsetY uint32
+	_       uint32 // unused: allocSize
+	_       uint32 // unused: nextBlock
+	Length  uint32
 }
 
 type Direction struct {
@@ -51,10 +51,8 @@ func NewFromReader(reader io.ReadSeeker) (*Sprite, error) {
 		return nil, err
 	}
 
-	frameCount := int(fileHead.DirCount * fileHead.FramesPerDir)
-
 	var frameOffsets []uint32
-	for i := 0; i < frameCount; i++ {
+	for i := uint32(0); i < fileHead.DirCount*fileHead.FramesPerDir; i++ {
 		var frameOffset uint32
 		if err := binary.Read(reader, binary.LittleEndian, &frameOffset); err != nil {
 			return nil, err
@@ -65,9 +63,9 @@ func NewFromReader(reader io.ReadSeeker) (*Sprite, error) {
 
 	sprite.Directions = make([]Direction, fileHead.FramesPerDir)
 
-	for i := 0; i < frameCount; i++ {
+	for i, frameOffset := range frameOffsets {
 		var frameHead frameHeader
-		if _, err := reader.Seek(int64(frameOffsets[i]), io.SeekStart); err != nil {
+		if _, err := reader.Seek(int64(frameOffset), io.SeekStart); err != nil {
 			return nil, err
 		}
 
@@ -97,33 +95,36 @@ func NewFromReader(reader io.ReadSeeker) (*Sprite, error) {
 }
 
 func extractFrame(reader io.ReadSeeker, writer io.WriteSeeker, header frameHeader) error {
-	var (
-		x uint32
-		y = header.Height - 1
-	)
-
-	var offset uint32
-	for offset < header.Length {
-		var chunkSize byte
-		if err := binary.Read(reader, binary.LittleEndian, &chunkSize); err != nil {
+	var x, y uint32
+	for readOffset := uint32(0); readOffset < header.Length; readOffset++ {
+		var chunk byte
+		if err := binary.Read(reader, binary.LittleEndian, &chunk); err != nil {
 			return err
 		}
 
-		if chunkSize == 0x80 {
-			x = 0
-			y--
-		} else if (chunkSize & 0x80) != 0 {
-			x += uint32(chunkSize & 0x7f)
+		if chunk&0x80 > 0 {
+			if skipLength := uint32(chunk & 0x7f); skipLength > 0 {
+				x += skipLength
+			} else {
+				x = 0
+				y++
+			}
+
 		} else {
-			if _, err := writer.Seek(int64(header.Width*y+x), io.SeekStart); err != nil {
+			writeOffset := int64(header.Width*(header.Height-y-1) + x)
+			if header.Flip != 0 {
+				writeOffset = int64(header.Width*y + x)
+			}
+
+			if _, err := writer.Seek(writeOffset, io.SeekStart); err != nil {
 				return err
 			}
-			if _, err := io.CopyN(writer, reader, int64(chunkSize)); err != nil {
+			if _, err := io.CopyN(writer, reader, int64(chunk)); err != nil {
 				return err
 			}
 
-			offset += uint32(chunkSize)
-			x += uint32(chunkSize)
+			readOffset += uint32(chunk)
+			x += uint32(chunk)
 		}
 	}
 
