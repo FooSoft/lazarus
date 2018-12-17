@@ -43,7 +43,7 @@ type Sprite struct {
 	Directions []Direction
 }
 
-func New(reader io.ReadSeeker) (*Sprite, error) {
+func NewFromReader(reader io.ReadSeeker) (*Sprite, error) {
 	sprite := new(Sprite)
 
 	var fileHead fileHeader
