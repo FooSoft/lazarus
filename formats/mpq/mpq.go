@@ -66,7 +66,7 @@ func (f *file) Read(data []byte) (int, error) {
 	if result := C.SFileReadFile(f.handle, unsafe.Pointer(&data[0]), C.uint(len(data)), (*C.uint)(unsafe.Pointer(&bytesRead)), nil); result == 0 {
 		lastError := getLastError()
 		if lastError == 1002 { // ERROR_HANDLE_EOF
-			return 0, io.EOF
+			return bytesRead, io.EOF
 		}
 
 		return 0, fmt.Errorf("failed to read file (%d)", lastError)
