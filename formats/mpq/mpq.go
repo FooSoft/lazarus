@@ -2,17 +2,18 @@ package mpq
 
 // #cgo LDFLAGS: -L./stormlib/ -lstorm -lz -lbz2 -lstdc++
 // #include <stdlib.h>
-// #define WINAPI
 // #define DWORD unsigned int
 // #define HANDLE void *
+// #define LONG int
 // #define LPDWORD unsigned int *
 // #define LPOVERLAPPED void *
 // #define TCHAR char
+// #define WINAPI
 // #define bool unsigned char
 // bool WINAPI SFileOpenArchive(const TCHAR * szMpqName, DWORD dwPriority, DWORD dwFlags, HANDLE * phMpq);
 // bool WINAPI SFileCloseArchive(HANDLE hMpq);
 // bool WINAPI SFileOpenFileEx(HANDLE hMpq, const char * szFileName, DWORD dwSearchScope, HANDLE * phFile);
-// DWORD WINAPI SFileGetFileSize(HANDLE hFile, LPDWORD pdwFileSizeHigh);
+// DWORD WINAPI SFileSetFilePointer(HANDLE hFile, LONG lFilePos, LONG * plFilePosHigh, DWORD dwMoveMethod);
 // bool WINAPI SFileReadFile(HANDLE hFile, void * lpBuffer, DWORD dwToRead, LPDWORD pdwRead, LPOVERLAPPED lpOverlapped);
 // bool WINAPI SFileCloseFile(HANDLE hFile);
 // DWORD GetLastError();
@@ -29,7 +30,7 @@ import (
 
 type File interface {
 	Read(data []byte) (int, error)
-	GetSize() int
+	Seek(offset int64, whence int) (int64, error)
 	Close() error
 }
 
@@ -58,32 +59,39 @@ func NewFromFile(path string) (Archive, error) {
 
 type file struct {
 	handle unsafe.Pointer
-	offset int
-	size   int
 }
 
 func (f *file) Read(data []byte) (int, error) {
-	bytesRemaining := f.size - f.offset
-	if bytesRemaining == 0 {
-		return 0, io.EOF
-	}
-
-	bytesRequested := len(data)
-	if bytesRequested > bytesRemaining {
-		bytesRequested = bytesRemaining
-	}
-
 	var bytesRead int
-	if result := C.SFileReadFile(f.handle, unsafe.Pointer(&data[0]), C.unsigned(bytesRequested), (*C.unsigned)(unsafe.Pointer(&bytesRead)), nil); result == 0 {
-		return 0, fmt.Errorf("failed to read file (%d)", getLastError())
+	if result := C.SFileReadFile(f.handle, unsafe.Pointer(&data[0]), C.uint(len(data)), (*C.uint)(unsafe.Pointer(&bytesRead)), nil); result == 0 {
+		lastError := getLastError()
+		if lastError == 1002 { // ERROR_HANDLE_EOF
+			return 0, io.EOF
+		}
+
+		return 0, fmt.Errorf("failed to read file (%d)", lastError)
 	}
 
-	f.offset += bytesRead
 	return bytesRead, nil
 }
 
-func (f *file) GetSize() int {
-	return f.size
+func (f *file) Seek(offset int64, whence int) (int64, error) {
+	var method uint
+	switch whence {
+	case io.SeekStart:
+		method = 0 // FILE_BEGIN
+	case io.SeekCurrent:
+		method = 1 // FILE_CURRENT
+	case io.SeekEnd:
+		method = 2 // FILE_END
+	}
+
+	result := C.SFileSetFilePointer(f.handle, C.int(offset), nil, C.uint(method))
+	if result == math.MaxUint32 { // SFILE_INVALID_SIZE
+		return 0, fmt.Errorf("failed to set file pointer (%d)", getLastError())
+	}
+
+	return int64(result), nil
 }
 
 func (f *file) Close() error {
@@ -92,19 +100,6 @@ func (f *file) Close() error {
 	}
 
 	f.handle = nil
-	f.offset = 0
-	f.size = 0
-
-	return nil
-}
-
-func (f *file) buildSize() error {
-	size := int(C.SFileGetFileSize(f.handle, nil))
-	if size == -1 {
-		return fmt.Errorf("failed to get file size (%d)", getLastError())
-	}
-
-	f.size = size
 	return nil
 }
 
@@ -120,7 +115,6 @@ func (a *archive) Close() error {
 
 	a.handle = nil
 	a.paths = nil
-
 	return nil
 }
 
@@ -132,14 +126,9 @@ func (a *archive) OpenFile(path string) (File, error) {
 	cs := C.CString(path)
 	defer C.free(unsafe.Pointer(cs))
 
-	file := &file{size: math.MaxUint32}
+	file := new(file)
 	if result := C.SFileOpenFileEx(a.handle, cs, 0, &file.handle); result == 0 {
 		return nil, fmt.Errorf("failed to open file (%d)", getLastError())
-	}
-
-	if err := file.buildSize(); err != nil {
-		file.Close()
-		return nil, err
 	}
 
 	return file, nil
