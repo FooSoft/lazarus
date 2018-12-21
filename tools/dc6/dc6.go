@@ -39,7 +39,7 @@ func extractSprite(spritePath string, palette *dat.Palette, targetDir string) er
 
 	for di, direction := range sprite.Directions {
 		for fi, frame := range direction.Frames {
-			img := image.NewNRGBA(image.Rect(0, 0, frame.Width, frame.Height))
+			img := image.NewRGBA(image.Rect(0, 0, frame.Width, frame.Height))
 			for y := 0; y < frame.Height; y++ {
 				for x := 0; x < frame.Width; x++ {
 					img.Set(x, y, palette.Colors[frame.Data[y*frame.Width+x]])

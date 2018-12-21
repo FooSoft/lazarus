@@ -7,7 +7,7 @@ import (
 )
 
 type Palette struct {
-	Colors [256]imageColor.NRGBA
+	Colors [256]imageColor.RGBA
 }
 
 type color struct {
@@ -24,7 +24,7 @@ func NewFromReader(reader io.Reader) (*Palette, error) {
 
 	palette := new(Palette)
 	for i, color := range colors {
-		palette.Colors[i] = imageColor.NRGBA{color.R, color.G, color.B, 0xff}
+		palette.Colors[i] = imageColor.RGBA{color.R, color.G, color.B, 0xff}
 	}
 
 	return palette, nil
