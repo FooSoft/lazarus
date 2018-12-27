@@ -9,6 +9,7 @@ type Window interface {
 type window struct {
 	sdlWindow    *sdl.Window
 	sdlGlContext sdl.GLContext
+	sdlRenderer  *sdl.Renderer
 }
 
 func newWindow(title string, width, height int) (Window, error) {
@@ -30,7 +31,13 @@ func newWindow(title string, width, height int) (Window, error) {
 		return nil, err
 	}
 
-	return &window{sdlWindow, sdlGlContext}, nil
+	sdlRenderer, err := sdl.CreateRenderer(sdlWindow, -1, sdl.RENDERER_ACCELERATED)
+	if err != nil {
+		sdlWindow.Destroy()
+		return nil, err
+	}
+
+	return &window{sdlWindow, sdlGlContext, sdlRenderer}, nil
 }
 
 func (w *window) Destroy() error {
