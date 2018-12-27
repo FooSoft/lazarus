@@ -2,6 +2,8 @@ package platform
 
 import (
 	"errors"
+	"runtime"
+	"time"
 
 	"github.com/FooSoft/imgui-go"
 	"github.com/go-gl/gl/v2.1/gl"
@@ -19,6 +21,8 @@ func Init() error {
 		return errors.New("platform is already initialized")
 	}
 
+	runtime.LockOSThread()
+
 	if err := sdl.Init(sdl.INIT_VIDEO); err != nil {
 		return err
 	}
@@ -31,9 +35,27 @@ func Init() error {
 	return nil
 }
 
+func ProcessEvents() error {
+	var terminate bool
+
+	for !terminate {
+		for event := sdl.PollEvent(); event != nil; event = sdl.PollEvent() {
+			switch event.(type) {
+			case *sdl.QuitEvent:
+				terminate = true
+				break
+			}
+		}
+
+		<-time.After(time.Millisecond * 25)
+	}
+
+	return nil
+}
+
 func Shutdown() error {
 	if !platformIsInit {
-		return errors.New("platform is not yet initialized")
+		return errors.New("platform was not initialized")
 	}
 
 	for _, w := range platformWindows {
