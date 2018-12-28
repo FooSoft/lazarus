@@ -11,24 +11,24 @@ import (
 )
 
 var (
-	imguiIsInit      bool
-	imguiButtonsDown [3]bool
-	imguiLastTime    uint64
-	imguiFontTexture uint32
-	imguiContext     *imgui.Context
-)
-
-var (
 	ErrAlreadyInit = errors.New("imgui backend is already initialized")
 	ErrWasNotInit  = errors.New("imgui backend was not initialized")
 )
 
+var state struct {
+	isInit      bool
+	buttonsDown [3]bool
+	lastTime    uint64
+	fontTexture uint32
+	context     *imgui.Context
+}
+
 func Init() error {
-	if imguiIsInit {
+	if state.isInit {
 		return ErrAlreadyInit
 	}
 
-	imguiContext = imgui.CreateContext(nil)
+	state.context = imgui.CreateContext(nil)
 
 	keys := map[int]int{
 		imgui.KeyTab:        sdl.SCANCODE_TAB,
@@ -60,30 +60,30 @@ func Init() error {
 		io.KeyMap(imguiKey, nativeKey)
 	}
 
-	imguiFontTexture = createFontTexture()
-	imguiIsInit = true
+	state.fontTexture = createFontTexture()
+	state.isInit = true
 
 	return nil
 }
 
 func Shutdown() error {
-	if !imguiIsInit {
+	if !state.isInit {
 		return ErrWasNotInit
 	}
 
-	imguiIsInit = false
+	state.isInit = false
 
-	destroyFontTexture(imguiFontTexture)
-	imguiFontTexture = 0
+	destroyFontTexture(state.fontTexture)
+	state.fontTexture = 0
 
-	imguiContext.Destroy()
-	imguiContext = nil
+	state.context.Destroy()
+	state.context = nil
 
 	return nil
 }
 
 func NewFrame(windowSize math.Vec2i) error {
-	if !imguiIsInit {
+	if !state.isInit {
 		return ErrWasNotInit
 	}
 
@@ -94,18 +94,18 @@ func NewFrame(windowSize math.Vec2i) error {
 	// Setup time step (we don't use SDL_GetTicks() because it is using millisecond resolution)
 	frequency := sdl.GetPerformanceFrequency()
 	currentTime := sdl.GetPerformanceCounter()
-	if imguiLastTime > 0 {
-		io.SetDeltaTime(float32(currentTime-imguiLastTime) / float32(frequency))
+	if state.lastTime > 0 {
+		io.SetDeltaTime(float32(currentTime-state.lastTime) / float32(frequency))
 	} else {
 		io.SetDeltaTime(1.0 / 60.0)
 	}
-	imguiLastTime = currentTime
+	state.lastTime = currentTime
 
 	// If a mouse press event came, always pass it as "mouse held this frame", so we don't miss click-release events that are shorter than 1 frame.
 	x, y, state := sdl.GetMouseState()
 	for i, button := range []uint32{sdl.BUTTON_LEFT, sdl.BUTTON_RIGHT, sdl.BUTTON_MIDDLE} {
-		io.SetMouseButtonDown(i, imguiButtonsDown[i] || (state&sdl.Button(button)) != 0)
-		imguiButtonsDown[i] = false
+		io.SetMouseButtonDown(i, state.buttonsDown[i] || (state&sdl.Button(button)) != 0)
+		state.buttonsDown[i] = false
 	}
 
 	io.SetMousePosition(imgui.Vec2{X: float32(x), Y: float32(y)})
@@ -120,7 +120,7 @@ func NewFrame(windowSize math.Vec2i) error {
 // Generally you may always pass all inputs to dear imgui, and hide them from your application based on those two flags.
 // If you have multiple SDL events and some of them are not meant to be used by dear imgui, you may need to filter events based on their windowID field.
 func ProcessEvent(event sdl.Event) (bool, error) {
-	if !imguiIsInit {
+	if !state.isInit {
 		return false, ErrWasNotInit
 	}
 
@@ -143,13 +143,13 @@ func ProcessEvent(event sdl.Event) (bool, error) {
 		buttonEvent := event.(*sdl.MouseButtonEvent)
 		switch buttonEvent.Button {
 		case sdl.BUTTON_LEFT:
-			imguiButtonsDown[0] = true
+			state.buttonsDown[0] = true
 			break
 		case sdl.BUTTON_RIGHT:
-			imguiButtonsDown[1] = true
+			state.buttonsDown[1] = true
 			break
 		case sdl.BUTTON_MIDDLE:
-			imguiButtonsDown[2] = true
+			state.buttonsDown[2] = true
 			break
 		}
 		return true, nil
@@ -180,7 +180,7 @@ func ProcessEvent(event sdl.Event) (bool, error) {
 // OpenGL2 Render function.
 // Note that this implementation is little overcomplicated because we are saving/setting up/restoring every OpenGL state explicitly, in order to be able to run within any OpenGL engine that doesn't do so.
 func Render(windowSize, fbSize math.Vec2i, drawData imgui.DrawData) error {
-	if !imguiIsInit {
+	if !state.isInit {
 		return ErrWasNotInit
 	}
 

@@ -11,17 +11,17 @@ import (
 )
 
 var (
-	platformIsInit  bool
-	platformWindows []Window
-)
-
-var (
 	ErrAlreadyInit = errors.New("platform is already initialized")
 	ErrWasNotInit  = errors.New("platform was not initialized")
 )
 
+var state struct {
+	isInit  bool
+	windows []Window
+}
+
 func Init() error {
-	if platformIsInit {
+	if state.isInit {
 		return ErrAlreadyInit
 	}
 
@@ -39,16 +39,16 @@ func Init() error {
 		return err
 	}
 
-	platformIsInit = true
+	state.isInit = true
 	return nil
 }
 
 func Shutdown() error {
-	if !platformIsInit {
+	if !state.isInit {
 		return ErrWasNotInit
 	}
 
-	for _, w := range platformWindows {
+	for _, w := range state.windows {
 		if err := w.Destroy(); err != nil {
 			return err
 		}
@@ -58,14 +58,14 @@ func Shutdown() error {
 		return err
 	}
 
-	platformWindows = nil
-	platformIsInit = false
+	state.windows = nil
+	state.isInit = false
 
 	return nil
 }
 
 func ProcessEvents() error {
-	if !platformIsInit {
+	if !state.isInit {
 		return ErrWasNotInit
 	}
 
@@ -86,7 +86,7 @@ func ProcessEvents() error {
 }
 
 func CreateWindow(title string, width, height int) (Window, error) {
-	if !platformIsInit {
+	if !state.isInit {
 		return nil, ErrWasNotInit
 	}
 
@@ -95,7 +95,7 @@ func CreateWindow(title string, width, height int) (Window, error) {
 		return nil, err
 	}
 
-	platformWindows = append(platformWindows, window)
+	state.windows = append(state.windows, window)
 
 	return window, err
 }
