@@ -1,6 +1,9 @@
 package platform
 
-import "github.com/veandco/go-sdl2/sdl"
+import (
+	"github.com/FooSoft/lazarus/math"
+	"github.com/veandco/go-sdl2/sdl"
+)
 
 type Window interface {
 	Destroy() error
@@ -10,9 +13,10 @@ type window struct {
 	sdlWindow    *sdl.Window
 	sdlGlContext sdl.GLContext
 	sdlRenderer  *sdl.Renderer
+	scene        Scene
 }
 
-func newWindow(title string, width, height int) (Window, error) {
+func newWindow(title string, width, height int, scene Scene) (*window, error) {
 	sdlWindow, err := sdl.CreateWindow(
 		title,
 		sdl.WINDOWPOS_CENTERED,
@@ -37,7 +41,7 @@ func newWindow(title string, width, height int) (Window, error) {
 		return nil, err
 	}
 
-	return &window{sdlWindow, sdlGlContext, sdlRenderer}, nil
+	return &window{sdlWindow, sdlGlContext, sdlRenderer, scene}, nil
 }
 
 func (w *window) Destroy() error {
@@ -51,4 +55,22 @@ func (w *window) Destroy() error {
 	w.sdlWindow = nil
 
 	return nil
+}
+
+func (w *window) advance() {
+	w.scene.Advance()
+}
+
+func (w *window) render() {
+	w.sdlWindow.GLMakeCurrent(w.sdlGlContext)
+}
+
+func (w *window) displaySize() math.Vec2i {
+	width, height := w.sdlWindow.GetSize()
+	return math.Vec2i{X: int(width), Y: int(height)}
+}
+
+func (w *window) bufferSize() math.Vec2i {
+	width, height := w.sdlWindow.GLGetDrawableSize()
+	return math.Vec2i{X: int(width), Y: int(height)}
 }

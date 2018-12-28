@@ -17,7 +17,11 @@ var (
 
 var state struct {
 	isInit  bool
-	windows []Window
+	windows []*window
+}
+
+type Scene interface {
+	Advance()
 }
 
 func Init() error {
@@ -69,12 +73,13 @@ func ProcessEvents() error {
 		return ErrWasNotInit
 	}
 
-	var terminate bool
-	for !terminate {
+	for running := true; running; {
+		advanceWindows()
+		renderWindows()
+
 		for event := sdl.PollEvent(); event != nil; event = sdl.PollEvent() {
-			switch event.(type) {
-			case *sdl.QuitEvent:
-				terminate = true
+			if !handleEvent(event) {
+				running = false
 				break
 			}
 		}
@@ -85,12 +90,12 @@ func ProcessEvents() error {
 	return nil
 }
 
-func CreateWindow(title string, width, height int) (Window, error) {
+func CreateWindow(title string, width, height int, scene Scene) (Window, error) {
 	if !state.isInit {
 		return nil, ErrWasNotInit
 	}
 
-	window, err := newWindow(title, width, height)
+	window, err := newWindow(title, width, height, scene)
 	if err != nil {
 		return nil, err
 	}
@@ -98,4 +103,25 @@ func CreateWindow(title string, width, height int) (Window, error) {
 	state.windows = append(state.windows, window)
 
 	return window, err
+}
+
+func advanceWindows() {
+	for _, window := range state.windows {
+		window.advance()
+	}
+}
+
+func renderWindows() {
+	for _, window := range state.windows {
+		window.render()
+	}
+}
+
+func handleEvent(event sdl.Event) bool {
+	switch event.(type) {
+	case *sdl.QuitEvent:
+		return false
+	}
+
+	return true
 }
