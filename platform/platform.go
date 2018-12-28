@@ -5,6 +5,7 @@ import (
 	"runtime"
 	"time"
 
+	"github.com/FooSoft/lazarus/platform/imgui_backend"
 	"github.com/go-gl/gl/v2.1/gl"
 	"github.com/veandco/go-sdl2/sdl"
 )
@@ -14,9 +15,14 @@ var (
 	platformWindows []Window
 )
 
+var (
+	ErrAlreadyInit = errors.New("platform is already initialized")
+	ErrWasNotInit  = errors.New("platform was not initialized")
+)
+
 func Init() error {
 	if platformIsInit {
-		return errors.New("platform is already initialized")
+		return ErrAlreadyInit
 	}
 
 	runtime.LockOSThread()
@@ -29,13 +35,38 @@ func Init() error {
 		return err
 	}
 
+	if err := imgui_backend.Init(); err != nil {
+		return err
+	}
+
 	platformIsInit = true
+	return nil
+}
+
+func Shutdown() error {
+	if !platformIsInit {
+		return ErrWasNotInit
+	}
+
+	for _, w := range platformWindows {
+		if err := w.Destroy(); err != nil {
+			return err
+		}
+	}
+
+	if err := imgui_backend.Shutdown(); err != nil {
+		return err
+	}
+
+	platformWindows = nil
+	platformIsInit = false
+
 	return nil
 }
 
 func ProcessEvents() error {
 	if !platformIsInit {
-		return errors.New("platform was not initialized")
+		return ErrWasNotInit
 	}
 
 	var terminate bool
@@ -54,26 +85,9 @@ func ProcessEvents() error {
 	return nil
 }
 
-func Shutdown() error {
-	if !platformIsInit {
-		return errors.New("platform was not initialized")
-	}
-
-	for _, w := range platformWindows {
-		if err := w.Destroy(); err != nil {
-			return err
-		}
-	}
-
-	platformWindows = nil
-	platformIsInit = false
-
-	return nil
-}
-
 func CreateWindow(title string, width, height int) (Window, error) {
 	if !platformIsInit {
-		return nil, errors.New("platform was not initialized")
+		return nil, ErrWasNotInit
 	}
 
 	window, err := newWindow(title, width, height)

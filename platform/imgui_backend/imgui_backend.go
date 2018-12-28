@@ -18,9 +18,14 @@ var (
 	imguiContext     *imgui.Context
 )
 
+var (
+	ErrAlreadyInit = errors.New("imgui backend is already initialized")
+	ErrWasNotInit  = errors.New("imgui backend was not initialized")
+)
+
 func Init() error {
 	if imguiIsInit {
-		return errors.New("imgui backend is already initialized")
+		return ErrAlreadyInit
 	}
 
 	imguiContext = imgui.CreateContext(nil)
@@ -56,14 +61,14 @@ func Init() error {
 	}
 
 	imguiFontTexture = createFontTexture()
-
 	imguiIsInit = true
+
 	return nil
 }
 
 func Shutdown() error {
 	if !imguiIsInit {
-		return errors.New("imgui backend was not initialized")
+		return ErrWasNotInit
 	}
 
 	imguiIsInit = false
@@ -79,7 +84,7 @@ func Shutdown() error {
 
 func NewFrame(windowSize math.Vec2i) error {
 	if !imguiIsInit {
-		return errors.New("imgui backend was not initialized")
+		return ErrWasNotInit
 	}
 
 	// Setup display size (every frame to accommodate for window resizing)
@@ -116,7 +121,7 @@ func NewFrame(windowSize math.Vec2i) error {
 // If you have multiple SDL events and some of them are not meant to be used by dear imgui, you may need to filter events based on their windowID field.
 func ProcessEvent(event sdl.Event) (bool, error) {
 	if !imguiIsInit {
-		return false, errors.New("imgui backend was not initialized")
+		return false, ErrWasNotInit
 	}
 
 	switch io := imgui.CurrentIO(); event.GetType() {
@@ -176,7 +181,7 @@ func ProcessEvent(event sdl.Event) (bool, error) {
 // Note that this implementation is little overcomplicated because we are saving/setting up/restoring every OpenGL state explicitly, in order to be able to run within any OpenGL engine that doesn't do so.
 func Render(windowSize, fbSize math.Vec2i, drawData imgui.DrawData) error {
 	if !imguiIsInit {
-		return errors.New("imgui backend was not initialized")
+		return ErrWasNotInit
 	}
 
 	drawData.ScaleClipRects(imgui.Vec2{
