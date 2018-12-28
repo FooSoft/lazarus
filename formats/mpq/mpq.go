@@ -9,13 +9,14 @@ package mpq
 //		#define WINAPI
 // 		DWORD GetLastError();
 // #endif
+//
 // #define DWORD unsigned int
-// #define HANDLE void *
-// #define LONG int
 // #define LPDWORD unsigned int *
 // #define LPOVERLAPPED void *
 // #define TCHAR char
+// #define HANDLE void *
 // #define bool unsigned char
+// #define LONG int
 //
 // bool  WINAPI SFileOpenArchive(const TCHAR * szMpqName, DWORD dwPriority, DWORD dwFlags, HANDLE * phMpq);
 // bool  WINAPI SFileCloseArchive(HANDLE hMpq);
@@ -72,7 +73,7 @@ func (f *file) Read(data []byte) (int, error) {
 	var bytesRead int
 	if result := C.SFileReadFile(f.handle, unsafe.Pointer(&data[0]), C.uint(len(data)), (*C.uint)(unsafe.Pointer(&bytesRead)), nil); result == 0 {
 		lastError := getLastError()
-		if lastError == 1002 || lastError == 38 { // ERROR_HANDLE_EOF
+		if lastError == sysEOF { // ERROR_HANDLE_EOF
 			return bytesRead, io.EOF
 		}
 
