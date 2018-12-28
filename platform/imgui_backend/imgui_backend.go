@@ -1,49 +1,30 @@
-package platform
+package imgui_backend
 
 import (
+	"errors"
 	"unsafe"
 
 	"github.com/FooSoft/imgui-go"
+	"github.com/FooSoft/lazarus/math"
 	"github.com/go-gl/gl/v2.1/gl"
 	"github.com/veandco/go-sdl2/sdl"
 )
 
-type imguiSdl2Gl2 struct {
-	renderer *rendererGl2
-	platform *platformSdl2
-}
+var (
+	imguiIsInit      bool
+	imguiButtonsDown [3]bool
+	imguiLastTime    uint64
+	imguiFontTexture uint32
+	imguiContext     *imgui.Context
+)
 
-func newImguiSdl2Gl2(window *sdl.Window) *imguiSdl2Gl2 {
-	return &imguiSdl2Gl2{
-		renderer: newRendererGl2(window),
-		platform: newPlatformSdl2(window),
+func Init() error {
+	if imguiIsInit {
+		return errors.New("imgui backend is already initialized")
 	}
-}
 
-func (impl *imguiSdl2Gl2) NewFrame() {
-	impl.platform.newFrame()
-	impl.renderer.newFrame()
-}
+	imguiContext = imgui.CreateContext(nil)
 
-func (impl *imguiSdl2Gl2) Render(drawData imgui.DrawData) {
-	impl.renderer.render(drawData)
-}
-
-func (impl *imguiSdl2Gl2) ProcessEvent(event sdl.Event) bool {
-	return impl.platform.processEvent(event)
-}
-
-func (impl *imguiSdl2Gl2) Shutdown() {
-	impl.renderer.shutdown()
-}
-
-type platformSdl2 struct {
-	window      *sdl.Window
-	time        uint64
-	buttonsDown [3]bool
-}
-
-func newPlatformSdl2(window *sdl.Window) *platformSdl2 {
 	keys := map[int]int{
 		imgui.KeyTab:        sdl.SCANCODE_TAB,
 		imgui.KeyLeftArrow:  sdl.SCANCODE_LEFT,
@@ -74,34 +55,58 @@ func newPlatformSdl2(window *sdl.Window) *platformSdl2 {
 		io.KeyMap(imguiKey, nativeKey)
 	}
 
-	return &platformSdl2{window: window}
+	imguiFontTexture = createFontTexture()
+
+	imguiIsInit = true
+	return nil
 }
 
-func (plat *platformSdl2) newFrame() {
-	io := imgui.CurrentIO()
+func Shutdown() error {
+	if !imguiIsInit {
+		return errors.New("imgui backend was not initialized")
+	}
+
+	imguiIsInit = false
+
+	destroyFontTexture(imguiFontTexture)
+	imguiFontTexture = 0
+
+	imguiContext.Destroy()
+	imguiContext = nil
+
+	return nil
+}
+
+func NewFrame(windowSize math.Vec2i) error {
+	if !imguiIsInit {
+		return errors.New("imgui backend was not initialized")
+	}
 
 	// Setup display size (every frame to accommodate for window resizing)
-	windowWidth, windowHeight := plat.window.GetSize()
-	io.SetDisplaySize(imgui.Vec2{X: float32(windowWidth), Y: float32(windowHeight)})
+	io := imgui.CurrentIO()
+	io.SetDisplaySize(imgui.Vec2{X: float32(windowSize.X), Y: float32(windowSize.Y)})
 
 	// Setup time step (we don't use SDL_GetTicks() because it is using millisecond resolution)
 	frequency := sdl.GetPerformanceFrequency()
 	currentTime := sdl.GetPerformanceCounter()
-	if plat.time > 0 {
-		io.SetDeltaTime(float32(currentTime-plat.time) / float32(frequency))
+	if imguiLastTime > 0 {
+		io.SetDeltaTime(float32(currentTime-imguiLastTime) / float32(frequency))
 	} else {
 		io.SetDeltaTime(1.0 / 60.0)
 	}
-	plat.time = currentTime
+	imguiLastTime = currentTime
 
 	// If a mouse press event came, always pass it as "mouse held this frame", so we don't miss click-release events that are shorter than 1 frame.
 	x, y, state := sdl.GetMouseState()
 	for i, button := range []uint32{sdl.BUTTON_LEFT, sdl.BUTTON_RIGHT, sdl.BUTTON_MIDDLE} {
-		io.SetMouseButtonDown(i, plat.buttonsDown[i] || (state&sdl.Button(button)) != 0)
-		plat.buttonsDown[i] = false
+		io.SetMouseButtonDown(i, imguiButtonsDown[i] || (state&sdl.Button(button)) != 0)
+		imguiButtonsDown[i] = false
 	}
 
 	io.SetMousePosition(imgui.Vec2{X: float32(x), Y: float32(y)})
+
+	imgui.NewFrame()
+	return nil
 }
 
 // You can read the io.WantCaptureMouse, io.WantCaptureKeyboard flags to tell if dear imgui wants to use your inputs.
@@ -109,7 +114,11 @@ func (plat *platformSdl2) newFrame() {
 // - When io.WantCaptureKeyboard is true, do not dispatch keyboard input data to your main application.
 // Generally you may always pass all inputs to dear imgui, and hide them from your application based on those two flags.
 // If you have multiple SDL events and some of them are not meant to be used by dear imgui, you may need to filter events based on their windowID field.
-func (plat *platformSdl2) processEvent(event sdl.Event) bool {
+func ProcessEvent(event sdl.Event) (bool, error) {
+	if !imguiIsInit {
+		return false, errors.New("imgui backend was not initialized")
+	}
+
 	switch io := imgui.CurrentIO(); event.GetType() {
 	case sdl.MOUSEWHEEL:
 		wheelEvent := event.(*sdl.MouseWheelEvent)
@@ -124,25 +133,25 @@ func (plat *platformSdl2) processEvent(event sdl.Event) bool {
 		} else if wheelEvent.Y < 0 {
 			deltaY--
 		}
-		return true
+		return true, nil
 	case sdl.MOUSEBUTTONDOWN:
 		buttonEvent := event.(*sdl.MouseButtonEvent)
 		switch buttonEvent.Button {
 		case sdl.BUTTON_LEFT:
-			plat.buttonsDown[0] = true
+			imguiButtonsDown[0] = true
 			break
 		case sdl.BUTTON_RIGHT:
-			plat.buttonsDown[1] = true
+			imguiButtonsDown[1] = true
 			break
 		case sdl.BUTTON_MIDDLE:
-			plat.buttonsDown[2] = true
+			imguiButtonsDown[2] = true
 			break
 		}
-		return true
+		return true, nil
 	case sdl.TEXTINPUT:
 		inputEvent := event.(*sdl.TextInputEvent)
 		io.AddInputCharacters(string(inputEvent.Text[:]))
-		return true
+		return true, nil
 	case sdl.KEYDOWN:
 		keyEvent := event.(*sdl.KeyboardEvent)
 		io.KeyPress(int(keyEvent.Keysym.Scancode))
@@ -157,36 +166,23 @@ func (plat *platformSdl2) processEvent(event sdl.Event) bool {
 		io.KeyShift(modState&sdl.KMOD_LSHIFT, modState&sdl.KMOD_RSHIFT)
 		io.KeyCtrl(modState&sdl.KMOD_LCTRL, modState&sdl.KMOD_RCTRL)
 		io.KeyAlt(modState&sdl.KMOD_LALT, modState&sdl.KMOD_RALT)
-		return true
+		return true, nil
 	}
 
-	return false
-}
-
-type rendererGl2 struct {
-	window      *sdl.Window
-	context     *sdl.GLContext
-	fontTexture uint32
-}
-
-func newRendererGl2(window *sdl.Window) *rendererGl2 {
-	return &rendererGl2{window: window}
-}
-
-func (rend *rendererGl2) newFrame() {
-	if rend.fontTexture == 0 {
-		rend.createFontsTexture()
-	}
-
-	imgui.NewFrame()
+	return false, nil
 }
 
 // OpenGL2 Render function.
 // Note that this implementation is little overcomplicated because we are saving/setting up/restoring every OpenGL state explicitly, in order to be able to run within any OpenGL engine that doesn't do so.
-func (rend *rendererGl2) render(drawData imgui.DrawData) {
-	displayWidth, displayHeight := rend.window.GetSize()
-	fbWidth, fbHeight := rend.window.GLGetDrawableSize()
-	drawData.ScaleClipRects(imgui.Vec2{X: float32(fbWidth) / float32(displayWidth), Y: float32(fbHeight) / float32(displayHeight)})
+func Render(windowSize, fbSize math.Vec2i, drawData imgui.DrawData) error {
+	if !imguiIsInit {
+		return errors.New("imgui backend was not initialized")
+	}
+
+	drawData.ScaleClipRects(imgui.Vec2{
+		X: float32(fbSize.X) / float32(windowSize.X),
+		Y: float32(fbSize.Y) / float32(windowSize.Y),
+	})
 
 	// We are using the OpenGL fixed pipeline to make the example code simpler to read!
 	// Setup render state: alpha-blending enabled, no face culling, no depth testing, scissor enabled, vertex/texcoord/color pointers, polygon fill.
@@ -217,11 +213,11 @@ func (rend *rendererGl2) render(drawData imgui.DrawData) {
 
 	// Setup viewport, orthographic projection matrix
 	// Our visible imgui space lies from draw_data->DisplayPos (top left) to draw_data->DisplayPos+data_data->DisplaySize (bottom right). DisplayMin is typically (0,0) for single viewport apps.
-	gl.Viewport(0, 0, int32(fbWidth), int32(fbHeight))
+	gl.Viewport(0, 0, int32(fbSize.X), int32(fbSize.Y))
 	gl.MatrixMode(gl.PROJECTION)
 	gl.PushMatrix()
 	gl.LoadIdentity()
-	gl.Ortho(0, float64(displayWidth), float64(displayHeight), 0, -1, 1)
+	gl.Ortho(0, float64(windowSize.X), float64(windowSize.Y), 0, -1, 1)
 	gl.MatrixMode(gl.MODELVIEW)
 	gl.PushMatrix()
 	gl.LoadIdentity()
@@ -249,7 +245,7 @@ func (rend *rendererGl2) render(drawData imgui.DrawData) {
 				command.CallUserCallback(commandList)
 			} else {
 				clipRect := command.ClipRect()
-				gl.Scissor(int32(clipRect.X), int32(fbHeight)-int32(clipRect.W), int32(clipRect.Z-clipRect.X), int32(clipRect.W-clipRect.Y))
+				gl.Scissor(int32(clipRect.X), int32(fbSize.Y)-int32(clipRect.W), int32(clipRect.Z-clipRect.X), int32(clipRect.W-clipRect.Y))
 				gl.BindTexture(gl.TEXTURE_2D, uint32(command.TextureID()))
 				gl.DrawElements(gl.TRIANGLES, int32(command.ElementCount()), uint32(drawType), unsafe.Pointer(indexBufferOffset))
 			}
@@ -272,13 +268,11 @@ func (rend *rendererGl2) render(drawData imgui.DrawData) {
 	gl.PolygonMode(gl.BACK, uint32(lastPolygonMode[1]))
 	gl.Viewport(lastViewport[0], lastViewport[1], lastViewport[2], lastViewport[3])
 	gl.Scissor(lastScissorBox[0], lastScissorBox[1], lastScissorBox[2], lastScissorBox[3])
+
+	return nil
 }
 
-func (rend *rendererGl2) shutdown() {
-	rend.destroyFontsTexture()
-}
-
-func (rend *rendererGl2) createFontsTexture() {
+func createFontTexture() uint32 {
 	// Build texture atlas
 	io := imgui.CurrentIO()
 	image := io.Fonts().TextureDataRGBA32()
@@ -286,24 +280,25 @@ func (rend *rendererGl2) createFontsTexture() {
 	// Upload texture to graphics system
 	var lastTexture int32
 	gl.GetIntegerv(gl.TEXTURE_BINDING_2D, &lastTexture)
-	gl.GenTextures(1, &rend.fontTexture)
-	gl.BindTexture(gl.TEXTURE_2D, rend.fontTexture)
+	var fontTexture uint32
+	gl.GenTextures(1, &fontTexture)
+	gl.BindTexture(gl.TEXTURE_2D, fontTexture)
 	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR)
 	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
 	gl.PixelStorei(gl.UNPACK_ROW_LENGTH, 0)
 	gl.TexImage2D(gl.TEXTURE_2D, 0, gl.RGBA, int32(image.Width), int32(image.Height), 0, gl.RGBA, gl.UNSIGNED_BYTE, image.Pixels)
 
 	// Store our identifier
-	io.Fonts().SetTextureID(imgui.TextureID(rend.fontTexture))
+	io.Fonts().SetTextureID(imgui.TextureID(fontTexture))
 
 	// Restore state
 	gl.BindTexture(gl.TEXTURE_2D, uint32(lastTexture))
+	return fontTexture
 }
 
-func (rend *rendererGl2) destroyFontsTexture() {
-	if rend.fontTexture != 0 {
-		gl.DeleteTextures(1, &rend.fontTexture)
+func destroyFontTexture(fontTexture uint32) {
+	if fontTexture != 0 {
+		gl.DeleteTextures(1, &fontTexture)
 		imgui.CurrentIO().Fonts().SetTextureID(0)
-		rend.fontTexture = 0
 	}
 }

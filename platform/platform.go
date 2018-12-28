@@ -5,15 +5,13 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/FooSoft/imgui-go"
 	"github.com/go-gl/gl/v2.1/gl"
 	"github.com/veandco/go-sdl2/sdl"
 )
 
 var (
-	platformIsInit       bool
-	platformImguiContext *imgui.Context
-	platformWindows      []Window
+	platformIsInit  bool
+	platformWindows []Window
 )
 
 func Init() error {
@@ -31,13 +29,16 @@ func Init() error {
 		return err
 	}
 
-	platformImguiContext = imgui.CreateContext(nil)
+	platformIsInit = true
 	return nil
 }
 
 func ProcessEvents() error {
-	var terminate bool
+	if !platformIsInit {
+		return errors.New("platform was not initialized")
+	}
 
+	var terminate bool
 	for !terminate {
 		for event := sdl.PollEvent(); event != nil; event = sdl.PollEvent() {
 			switch event.(type) {
@@ -65,14 +66,22 @@ func Shutdown() error {
 	}
 
 	platformWindows = nil
+	platformIsInit = false
+
 	return nil
 }
 
 func CreateWindow(title string, width, height int) (Window, error) {
+	if !platformIsInit {
+		return nil, errors.New("platform was not initialized")
+	}
+
 	window, err := newWindow(title, width, height)
 	if err != nil {
 		return nil, err
 	}
+
+	platformWindows = append(platformWindows, window)
 
 	return window, err
 }
