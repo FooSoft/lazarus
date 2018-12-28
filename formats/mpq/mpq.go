@@ -1,22 +1,29 @@
 package mpq
 
-// #cgo LDFLAGS: -L./stormlib/ -lstorm -lz -lbz2 -lstdc++
-// #include <stdlib.h>
+// #ifdef _MPQ_WINDOWS
+// 		#include <windows.h>
+// 		#include <stdlib.h>
+// #endif
+// #ifdef _MPQ_LINUX
+//		#include <stdlib.h>
+//		#define WINAPI
+// 		DWORD GetLastError();
+// #endif
 // #define DWORD unsigned int
 // #define HANDLE void *
 // #define LONG int
 // #define LPDWORD unsigned int *
 // #define LPOVERLAPPED void *
 // #define TCHAR char
-// #define WINAPI
 // #define bool unsigned char
-// bool WINAPI SFileOpenArchive(const TCHAR * szMpqName, DWORD dwPriority, DWORD dwFlags, HANDLE * phMpq);
-// bool WINAPI SFileCloseArchive(HANDLE hMpq);
-// bool WINAPI SFileOpenFileEx(HANDLE hMpq, const char * szFileName, DWORD dwSearchScope, HANDLE * phFile);
+//
+// bool  WINAPI SFileOpenArchive(const TCHAR * szMpqName, DWORD dwPriority, DWORD dwFlags, HANDLE * phMpq);
+// bool  WINAPI SFileCloseArchive(HANDLE hMpq);
+// bool  WINAPI SFileOpenFileEx(HANDLE hMpq, const char * szFileName, DWORD dwSearchScope, HANDLE * phFile);
 // DWORD WINAPI SFileSetFilePointer(HANDLE hFile, LONG lFilePos, LONG * plFilePosHigh, DWORD dwMoveMethod);
-// bool WINAPI SFileReadFile(HANDLE hFile, void * lpBuffer, DWORD dwToRead, LPDWORD pdwRead, LPOVERLAPPED lpOverlapped);
-// bool WINAPI SFileCloseFile(HANDLE hFile);
-// DWORD GetLastError();
+// bool  WINAPI SFileReadFile(HANDLE hFile, void * lpBuffer, DWORD dwToRead, LPDWORD pdwRead, LPOVERLAPPED lpOverlapped);
+// bool  WINAPI SFileCloseFile(HANDLE hFile);
+//
 import "C"
 import (
 	"bytes"
@@ -65,7 +72,7 @@ func (f *file) Read(data []byte) (int, error) {
 	var bytesRead int
 	if result := C.SFileReadFile(f.handle, unsafe.Pointer(&data[0]), C.uint(len(data)), (*C.uint)(unsafe.Pointer(&bytesRead)), nil); result == 0 {
 		lastError := getLastError()
-		if lastError == 1002 { // ERROR_HANDLE_EOF
+		if lastError == 1002 || lastError == 38 { // ERROR_HANDLE_EOF
 			return bytesRead, io.EOF
 		}
 
@@ -161,7 +168,7 @@ func (a *archive) buildPathMap() error {
 	for _, line := range lines {
 		pathInt := strings.TrimSpace(line)
 		if len(pathInt) > 0 {
-			pathExt := santizePath(pathInt)
+			pathExt := sanitizePath(pathInt)
 			a.paths[pathExt] = pathInt
 		}
 	}
@@ -169,7 +176,7 @@ func (a *archive) buildPathMap() error {
 	return nil
 }
 
-func santizePath(path string) string {
+func sanitizePath(path string) string {
 	return strings.ToLower(strings.Replace(path, "\\", string(os.PathSeparator), -1))
 }
 
