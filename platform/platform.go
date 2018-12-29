@@ -17,11 +17,13 @@ var (
 
 var state struct {
 	isInit  bool
-	windows []*window
+	windows []*Window
 }
 
 type Scene interface {
-	Advance()
+	Init(window *Window) error
+	Advance(window *Window) error
+	Shutdown(window *Window) error
 }
 
 func Init() error {
@@ -75,10 +77,9 @@ func ProcessEvents() error {
 
 	for running := true; running; {
 		advanceWindows()
-		renderWindows()
 
 		for event := sdl.PollEvent(); event != nil; event = sdl.PollEvent() {
-			if !handleEvent(event) {
+			if !processEvent(event) {
 				running = false
 				break
 			}
@@ -90,7 +91,7 @@ func ProcessEvents() error {
 	return nil
 }
 
-func CreateWindow(title string, width, height int, scene Scene) (Window, error) {
+func CreateWindow(title string, width, height int, scene Scene) (*Window, error) {
 	if !state.isInit {
 		return nil, ErrWasNotInit
 	}
@@ -111,13 +112,12 @@ func advanceWindows() {
 	}
 }
 
-func renderWindows() {
-	for _, window := range state.windows {
-		window.render()
+func processEvent(event sdl.Event) bool {
+	handled, _ := imgui_backend.ProcessEvent(event)
+	if handled {
+		return true
 	}
-}
 
-func handleEvent(event sdl.Event) bool {
 	switch event.(type) {
 	case *sdl.QuitEvent:
 		return false

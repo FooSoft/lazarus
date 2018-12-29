@@ -1,22 +1,22 @@
 package platform
 
 import (
+	"image/color"
+
+	imgui "github.com/FooSoft/imgui-go"
 	"github.com/FooSoft/lazarus/math"
+	"github.com/FooSoft/lazarus/platform/imgui_backend"
 	"github.com/veandco/go-sdl2/sdl"
 )
 
-type Window interface {
-	Destroy() error
-}
-
-type window struct {
+type Window struct {
 	sdlWindow    *sdl.Window
 	sdlGlContext sdl.GLContext
 	sdlRenderer  *sdl.Renderer
 	scene        Scene
 }
 
-func newWindow(title string, width, height int, scene Scene) (*window, error) {
+func newWindow(title string, width, height int, scene Scene) (*Window, error) {
 	sdlWindow, err := sdl.CreateWindow(
 		title,
 		sdl.WINDOWPOS_CENTERED,
@@ -41,14 +41,25 @@ func newWindow(title string, width, height int, scene Scene) (*window, error) {
 		return nil, err
 	}
 
-	return &window{sdlWindow, sdlGlContext, sdlRenderer, scene}, nil
+	window := &Window{sdlWindow, sdlGlContext, sdlRenderer, scene}
+	if err := scene.Init(window); err != nil {
+		return nil, err
+	}
+
+	return window, nil
 }
 
-func (w *window) Destroy() error {
-	if w.sdlWindow != nil {
-		if err := w.sdlWindow.Destroy(); err != nil {
-			return err
-		}
+func (w *Window) Destroy() error {
+	if w.sdlWindow == nil {
+		return nil
+	}
+
+	if err := w.scene.Shutdown(w); err != nil {
+		return err
+	}
+
+	if err := w.sdlWindow.Destroy(); err != nil {
+		return err
 	}
 
 	w.sdlGlContext = nil
@@ -57,20 +68,33 @@ func (w *window) Destroy() error {
 	return nil
 }
 
-func (w *window) advance() {
-	w.scene.Advance()
+func (w *Window) CreateTextureRgba(colors []color.RGBA, width, height int) (*Texture, error) {
+	return newTextureFromRgba(w.sdlRenderer, colors, width, height)
 }
 
-func (w *window) render() {
+func (w *Window) RenderTexture(texture *Texture, srcRect, dstRect math.Rect4i) {
+	w.sdlRenderer.Copy(
+		texture.sdlTexture,
+		&sdl.Rect{X: int32(srcRect.X), Y: int32(srcRect.Y), W: int32(srcRect.W), H: int32(srcRect.H)},
+		&sdl.Rect{X: int32(dstRect.X), Y: int32(dstRect.Y), W: int32(dstRect.W), H: int32(dstRect.H)},
+	)
+}
+
+func (w *Window) advance() {
+	imgui_backend.NewFrame(w.displaySize())
+	w.scene.Advance(w)
+	imgui.Render()
 	w.sdlWindow.GLMakeCurrent(w.sdlGlContext)
+	imgui_backend.Render(w.displaySize(), w.bufferSize(), imgui.RenderedDrawData())
+	w.sdlWindow.GLSwap()
 }
 
-func (w *window) displaySize() math.Vec2i {
+func (w *Window) displaySize() math.Vec2i {
 	width, height := w.sdlWindow.GetSize()
 	return math.Vec2i{X: int(width), Y: int(height)}
 }
 
-func (w *window) bufferSize() math.Vec2i {
+func (w *Window) bufferSize() math.Vec2i {
 	width, height := w.sdlWindow.GLGetDrawableSize()
 	return math.Vec2i{X: int(width), Y: int(height)}
 }

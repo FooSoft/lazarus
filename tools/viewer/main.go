@@ -7,8 +7,8 @@ import (
 
 	"github.com/FooSoft/lazarus/formats/dat"
 	"github.com/FooSoft/lazarus/formats/dc6"
-	"github.com/FooSoft/lazarus/graphics"
-	"github.com/veandco/go-sdl2/sdl"
+	"github.com/FooSoft/lazarus/math"
+	"github.com/FooSoft/lazarus/platform"
 )
 
 func loadPalette(path string) (*dat.Palette, error) {
@@ -29,7 +29,7 @@ func loadSprite(path string) (*dc6.Sprite, error) {
 	return dc6.NewFromReader(fp)
 }
 
-func loadSurface(spritePath, palettePath string) (*sdl.Surface, error) {
+func loadTexture(window *platform.Window, spritePath, palettePath string) (*platform.Texture, error) {
 	sprite, err := loadSprite(spritePath)
 	if err != nil {
 		return nil, err
@@ -48,44 +48,44 @@ func loadSurface(spritePath, palettePath string) (*sdl.Surface, error) {
 		}
 	}
 
-	return graphics.NewSurfaceFromRgba(colors, frame.Width, frame.Height)
+	return window.CreateTextureRgba(colors, frame.Width, frame.Height)
+}
+
+type scene struct {
+	texture *platform.Texture
+}
+
+func (s *scene) Init(window *platform.Window) error {
+	var err error
+	s.texture, err = loadTexture(window, "/home/alex/loadingscreen.dc6", "/home/alex/pal.dat")
+	return err
+}
+
+func (s *scene) Advance(window *platform.Window) error {
+	window.RenderTexture(
+		s.texture,
+		math.Rect4i{X: 0, Y: 0, W: 256, H: 256},
+		math.Rect4i{X: 0, Y: 0, W: 256, H: 256},
+	)
+
+	return nil
+}
+
+func (s *scene) Shutdown(window *platform.Window) error {
+	return s.texture.Destroy()
 }
 
 func main() {
-	window, err := sdl.CreateWindow("Viewer", sdl.WINDOWPOS_UNDEFINED, sdl.WINDOWPOS_UNDEFINED, 800, 600, sdl.WINDOW_SHOWN)
+	platform.Init()
+	defer platform.Shutdown()
+
+	window, err := platform.CreateWindow("Viewer", 1280, 720, new(scene))
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer window.Destroy()
 
-	renderer, err := sdl.CreateRenderer(window, -1, sdl.RENDERER_ACCELERATED)
-	if err != nil {
+	if err := platform.ProcessEvents(); err != nil {
 		log.Fatal(err)
-	}
-	defer renderer.Destroy()
-
-	sprite, err := loadSurface("/home/alex/loadingscreen.dc6", "/home/alex/pal.dat")
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	texture, err := renderer.CreateTextureFromSurface(sprite)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	renderer.Clear()
-	renderer.Copy(texture, &sdl.Rect{0, 0, 256, 256}, &sdl.Rect{0, 0, 256, 256})
-	renderer.Present()
-
-	for running := true; running; {
-		for event := sdl.PollEvent(); event != nil; event = sdl.PollEvent() {
-			switch event.(type) {
-			case *sdl.QuitEvent:
-				running = false
-				break
-			}
-			sdl.Delay(1)
-		}
 	}
 }
