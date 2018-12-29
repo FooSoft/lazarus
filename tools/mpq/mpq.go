@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"path"
+	"path/filepath"
 
 	"github.com/FooSoft/lazarus/formats/mpq"
 	"github.com/bmatcuk/doublestar"
@@ -57,8 +57,8 @@ func extract(mpqPath, filter, targetDir string) error {
 		}
 		defer resFile.Close()
 
-		sysPath := path.Join(targetDir, resPath)
-		if err := os.MkdirAll(path.Dir(sysPath), 0777); err != nil {
+		sysPath := filepath.Join(targetDir, resPath)
+		if err := os.MkdirAll(filepath.Dir(sysPath), 0777); err != nil {
 			return err
 		}
 
@@ -85,7 +85,7 @@ func main() {
 	)
 
 	flag.Usage = func() {
-		fmt.Fprintf(os.Stderr, "Usage: %s [options] command [files]\n", path.Base(os.Args[0]))
+		fmt.Fprintf(os.Stderr, "Usage: %s [options] command [files]\n", filepath.Base(os.Args[0]))
 		fmt.Fprintf(os.Stderr, "Parameters:\n\n")
 		flag.PrintDefaults()
 	}
