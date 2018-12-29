@@ -70,6 +70,21 @@ func Shutdown() error {
 	return nil
 }
 
+func CreateWindow(title string, width, height int, scene Scene) (*Window, error) {
+	if !state.isInit {
+		return nil, ErrWasNotInit
+	}
+
+	window, err := newWindow(title, width, height, scene)
+	if err != nil {
+		return nil, err
+	}
+
+	state.windows = append(state.windows, window)
+
+	return window, err
+}
+
 func ProcessEvents() error {
 	if !state.isInit {
 		return ErrWasNotInit
@@ -89,21 +104,6 @@ func ProcessEvents() error {
 	}
 
 	return nil
-}
-
-func CreateWindow(title string, width, height int, scene Scene) (*Window, error) {
-	if !state.isInit {
-		return nil, ErrWasNotInit
-	}
-
-	window, err := newWindow(title, width, height, scene)
-	if err != nil {
-		return nil, err
-	}
-
-	state.windows = append(state.windows, window)
-
-	return window, err
 }
 
 func advanceWindows() {

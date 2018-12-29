@@ -60,7 +60,6 @@ func Init() error {
 		io.KeyMap(imguiKey, nativeKey)
 	}
 
-	singleton.fontTexture = createFontTexture()
 	singleton.isInit = true
 
 	return nil
@@ -85,6 +84,10 @@ func Shutdown() error {
 func NewFrame(windowSize math.Vec2i) error {
 	if !singleton.isInit {
 		return ErrWasNotInit
+	}
+
+	if singleton.fontTexture == 0 {
+		singleton.fontTexture = createFontTexture()
 	}
 
 	// Setup display size (every frame to accommodate for window resizing)

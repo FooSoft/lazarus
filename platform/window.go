@@ -29,13 +29,13 @@ func newWindow(title string, width, height int, scene Scene) (*Window, error) {
 		return nil, err
 	}
 
-	sdlGlContext, err := sdlWindow.GLCreateContext()
+	sdlRenderer, err := sdl.CreateRenderer(sdlWindow, -1, sdl.RENDERER_ACCELERATED)
 	if err != nil {
 		sdlWindow.Destroy()
 		return nil, err
 	}
 
-	sdlRenderer, err := sdl.CreateRenderer(sdlWindow, -1, sdl.RENDERER_ACCELERATED)
+	sdlGlContext, err := sdlWindow.GLCreateContext()
 	if err != nil {
 		sdlWindow.Destroy()
 		return nil, err
@@ -83,7 +83,9 @@ func (w *Window) RenderTexture(texture *Texture, srcRect, dstRect math.Rect4i) {
 func (w *Window) advance() {
 	imgui_backend.NewFrame(w.displaySize())
 	w.scene.Advance(w)
+
 	imgui.Render()
+
 	w.sdlWindow.GLMakeCurrent(w.sdlGlContext)
 	imgui_backend.Render(w.displaySize(), w.bufferSize(), imgui.RenderedDrawData())
 	w.sdlWindow.GLSwap()
