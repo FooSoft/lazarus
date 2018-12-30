@@ -10,10 +10,9 @@ import (
 )
 
 type Window struct {
-	sdlWindow    *sdl.Window
-	sdlGlContext sdl.GLContext
-	sdlRenderer  *sdl.Renderer
-	scene        Scene
+	sdlWindow   *sdl.Window
+	sdlRenderer *sdl.Renderer
+	scene       Scene
 }
 
 func newWindow(title string, width, height int, scene Scene) (*Window, error) {
@@ -35,13 +34,7 @@ func newWindow(title string, width, height int, scene Scene) (*Window, error) {
 		return nil, err
 	}
 
-	sdlGlContext, err := sdlWindow.GLCreateContext()
-	if err != nil {
-		sdlWindow.Destroy()
-		return nil, err
-	}
-
-	window := &Window{sdlWindow, sdlGlContext, sdlRenderer, scene}
+	window := &Window{sdlWindow, sdlRenderer, scene}
 	if err := scene.Init(window); err != nil {
 		return nil, err
 	}
@@ -62,7 +55,6 @@ func (w *Window) Destroy() error {
 		return err
 	}
 
-	w.sdlGlContext = nil
 	w.sdlWindow = nil
 
 	return nil
@@ -86,7 +78,6 @@ func (w *Window) advance() {
 
 	w.scene.Advance(w)
 
-	w.sdlWindow.GLMakeCurrent(w.sdlGlContext)
 	imgui.Render()
 	imgui_backend.Render(w.displaySize(), w.bufferSize(), imgui.RenderedDrawData())
 	w.sdlWindow.GLSwap()
