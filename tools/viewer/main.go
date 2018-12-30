@@ -1,9 +1,12 @@
 package main
 
 import (
+	"flag"
+	"fmt"
 	"image/color"
 	"log"
 	"os"
+	"path/filepath"
 
 	imgui "github.com/FooSoft/imgui-go"
 	"github.com/FooSoft/lazarus/formats/dat"
@@ -30,40 +33,54 @@ func loadSprite(path string) (*dc6.Sprite, error) {
 	return dc6.NewFromReader(fp)
 }
 
-func loadTexture(window *platform.Window, spritePath, palettePath string) (*platform.Texture, error) {
-	sprite, err := loadSprite(spritePath)
-	if err != nil {
-		return nil, err
-	}
-
-	palette, err := loadPalette(palettePath)
-	if err != nil {
-		return nil, err
-	}
-
-	frame := sprite.Directions[0].Frames[0]
-	colors := make([]color.RGBA, frame.Width*frame.Height)
-	for y := 0; y < frame.Height; y++ {
-		for x := 0; x < frame.Width; x++ {
-			colors[y*frame.Width+x] = palette.Colors[frame.Data[y*frame.Width+x]]
-		}
-	}
-
-	return window.CreateTextureRgba(colors, frame.Width, frame.Height)
-}
-
 type scene struct {
+	sprite  *dc6.Sprite
+	palette *dat.Palette
 	texture *platform.Texture
+
+	directionIndex int32
+	frameIndex     int32
 }
 
 func (s *scene) Init(window *platform.Window) error {
-	var err error
-	s.texture, err = loadTexture(window, "/home/alex/loadingscreen.dc6", "/home/alex/pal.dat")
-	return err
+	return nil
+}
+
+func (s *scene) Shutdown(window *platform.Window) error {
+	if s.texture == nil {
+		return nil
+	}
+
+	return s.texture.Destroy()
 }
 
 func (s *scene) Advance(window *platform.Window) error {
-	imgui.Text("Hello")
+	var (
+		directionIndex = s.directionIndex
+		frameIndex     = s.frameIndex
+	)
+
+	direction := s.sprite.Directions[directionIndex]
+	if imgui.SliderInt("Direction", &directionIndex, 0, int32(len(s.sprite.Directions))-1) {
+		frameIndex = 0
+	}
+	frame := direction.Frames[frameIndex]
+	imgui.SliderInt("Frame", &frameIndex, 0, int32(len(direction.Frames))-1)
+
+	if s.texture == nil || directionIndex != s.directionIndex || frameIndex != s.frameIndex {
+		colors := make([]color.RGBA, frame.Width*frame.Height)
+		for y := 0; y < frame.Height; y++ {
+			for x := 0; x < frame.Width; x++ {
+				colors[y*frame.Width+x] = s.palette.Colors[frame.Data[y*frame.Width+x]]
+			}
+		}
+
+		var err error
+		s.texture, err = window.CreateTextureRgba(colors, frame.Width, frame.Height)
+		if err != nil {
+			return err
+		}
+	}
 
 	window.RenderTexture(
 		s.texture,
@@ -71,18 +88,50 @@ func (s *scene) Advance(window *platform.Window) error {
 		math.Rect4i{X: 0, Y: 0, W: 256, H: 256},
 	)
 
+	s.directionIndex = directionIndex
+	s.frameIndex = frameIndex
+
 	return nil
 }
 
-func (s *scene) Shutdown(window *platform.Window) error {
-	return s.texture.Destroy()
-}
-
 func main() {
+	var (
+		palettePath = flag.String("palette", "", "path to palette file")
+	)
+
+	flag.Usage = func() {
+		fmt.Fprintf(os.Stderr, "Usage: %s [options] file\n", filepath.Base(os.Args[0]))
+		fmt.Fprintf(os.Stderr, "Parameters:\n\n")
+		flag.PrintDefaults()
+	}
+
+	flag.Parse()
+
+	if flag.NArg() < 1 {
+		flag.Usage()
+		os.Exit(2)
+	}
+
+	sprite, err := loadSprite(flag.Arg(0))
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+
+	palette := new(dat.Palette)
+	if len(*palettePath) > 0 {
+		palette, err = loadPalette(*palettePath)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+	}
+
 	platform.Init()
 	defer platform.Shutdown()
 
-	window, err := platform.CreateWindow("Viewer", 1280, 720, new(scene))
+	scene := &scene{sprite: sprite, palette: palette}
+	window, err := platform.CreateWindow("Viewer", 1280, 720, scene)
 	if err != nil {
 		log.Fatal(err)
 	}

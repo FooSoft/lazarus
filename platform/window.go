@@ -86,6 +86,7 @@ func (w *Window) advance() {
 
 	w.scene.Advance(w)
 
+	w.sdlWindow.GLMakeCurrent(w.sdlGlContext)
 	imgui.Render()
 	imgui_backend.Render(w.displaySize(), w.bufferSize(), imgui.RenderedDrawData())
 	w.sdlWindow.GLSwap()
