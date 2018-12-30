@@ -299,7 +299,7 @@ func createFontTexture() uint32 {
 	// Store our identifier
 	io.Fonts().SetTextureID(imgui.TextureID(fontTexture))
 
-	// Restore singleton
+	// Restore state
 	gl.BindTexture(gl.TEXTURE_2D, uint32(lastTexture))
 	return fontTexture
 }

@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 
+	imgui "github.com/FooSoft/imgui-go"
 	"github.com/FooSoft/lazarus/formats/dat"
 	"github.com/FooSoft/lazarus/formats/dc6"
 	"github.com/FooSoft/lazarus/math"
@@ -62,6 +63,8 @@ func (s *scene) Init(window *platform.Window) error {
 }
 
 func (s *scene) Advance(window *platform.Window) error {
+	imgui.Text("Hello")
+
 	window.RenderTexture(
 		s.texture,
 		math.Rect4i{X: 0, Y: 0, W: 256, H: 256},
