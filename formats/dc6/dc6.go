@@ -61,7 +61,7 @@ func NewFromReader(reader io.ReadSeeker) (*Sprite, error) {
 		frameOffsets = append(frameOffsets, frameOffset)
 	}
 
-	sprite.Directions = make([]Direction, fileHead.FramesPerDir)
+	sprite.Directions = make([]Direction, fileHead.DirCount)
 
 	for i, frameOffset := range frameOffsets {
 		var frameHead frameHeader

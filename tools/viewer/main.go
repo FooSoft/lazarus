@@ -67,6 +67,11 @@ func (s *scene) Advance(window *platform.Window) error {
 	frame := direction.Frames[frameIndex]
 	imgui.SliderInt("Frame", &frameIndex, 0, int32(len(direction.Frames))-1)
 
+	imgui.Text(fmt.Sprintf("Height: %d", frame.Height))
+	imgui.Text(fmt.Sprintf("Width: %d", frame.Width))
+	imgui.Text(fmt.Sprintf("OffsetX: %d", frame.OffsetX))
+	imgui.Text(fmt.Sprintf("OffsetY: %d", frame.OffsetY))
+
 	if s.texture == nil || directionIndex != s.directionIndex || frameIndex != s.frameIndex {
 		colors := make([]color.RGBA, frame.Width*frame.Height)
 		for y := 0; y < frame.Height; y++ {
@@ -118,13 +123,15 @@ func main() {
 		os.Exit(1)
 	}
 
-	palette := new(dat.Palette)
+	var palette *dat.Palette
 	if len(*palettePath) > 0 {
 		palette, err = loadPalette(*palettePath)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(1)
 		}
+	} else {
+		palette = dat.NewFromGrayscale()
 	}
 
 	platform.Init()

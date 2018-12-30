@@ -29,3 +29,13 @@ func NewFromReader(reader io.Reader) (*Palette, error) {
 
 	return palette, nil
 }
+
+func NewFromGrayscale() *Palette {
+	palette := new(Palette)
+	for i := 0; i < 256; i++ {
+		value := uint8(i)
+		palette.Colors[i] = imageColor.RGBA{value, value, value, 0xff}
+	}
+
+	return palette
+}
