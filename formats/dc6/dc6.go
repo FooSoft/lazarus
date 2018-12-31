@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"io"
 
+	"github.com/FooSoft/lazarus/math"
 	"github.com/FooSoft/lazarus/streaming"
 )
 
@@ -32,11 +33,9 @@ type Direction struct {
 }
 
 type Frame struct {
-	Width   int
-	Height  int
-	OffsetX int
-	OffsetY int
-	Data    []byte
+	Size   math.Vec2i
+	Offset math.Vec2i
+	Data   []byte
 }
 
 type Sprite struct {
@@ -79,15 +78,13 @@ func NewFromReader(reader io.ReadSeeker) (*Sprite, error) {
 			return nil, err
 		}
 
-		frame := Frame{
-			int(frameHead.Width),
-			int(frameHead.Height),
-			int(frameHead.OffsetX),
-			int(frameHead.OffsetY),
-			data,
-		}
+		var (
+			size      = math.Vec2i{X: int(frameHead.Width), Y: int(frameHead.Height)}
+			offset    = math.Vec2i{X: int(frameHead.OffsetX), Y: int(frameHead.OffsetY)}
+			frame     = Frame{size, offset, data}
+			direction = &sprite.Directions[i/int(fileHead.FramesPerDir)]
+		)
 
-		direction := &sprite.Directions[i/int(fileHead.FramesPerDir)]
 		direction.Frames = append(direction.Frames, frame)
 	}
 

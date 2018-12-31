@@ -69,8 +69,8 @@ func (w *Window) Destroy() error {
 	return nil
 }
 
-func (w *Window) CreateTextureRgba(colors []color.RGBA, width, height int) (*Texture, error) {
-	return newTextureFromRgba(colors, width, height)
+func (w *Window) CreateTextureRgba(colors []color.RGBA, size math.Vec2i) (*Texture, error) {
+	return newTextureFromRgba(colors, size)
 }
 
 func (w *Window) RenderTexture(texture *Texture, position math.Vec2i) {

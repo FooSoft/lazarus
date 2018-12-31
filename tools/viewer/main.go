@@ -74,8 +74,8 @@ func (s *scene) Advance(window *platform.Window) error {
 	}
 	frame := direction.Frames[frameIndex]
 	imgui.SliderInt("Frame", &frameIndex, 0, int32(len(direction.Frames))-1)
-	imgui.Text(fmt.Sprintf("Size: %dx%d", frame.Width, frame.Height))
-	imgui.Text(fmt.Sprintf("Offset: %dx%d", frame.OffsetX, frame.OffsetY))
+	imgui.Text(fmt.Sprintf("Size: %+v", frame.Size))
+	imgui.Text(fmt.Sprintf("Offset: %+v", frame.Offset))
 
 	if directionIndex != s.directionIndex || frameIndex != s.frameIndex {
 		s.directionIndex = directionIndex
@@ -89,10 +89,10 @@ func (s *scene) Advance(window *platform.Window) error {
 
 func (s *scene) updateTexture(window *platform.Window) error {
 	frame := s.sprite.Directions[s.directionIndex].Frames[s.frameIndex]
-	colors := make([]color.RGBA, frame.Width*frame.Height)
-	for y := 0; y < frame.Height; y++ {
-		for x := 0; x < frame.Width; x++ {
-			colors[y*frame.Width+x] = s.palette.Colors[frame.Data[y*frame.Width+x]]
+	colors := make([]color.RGBA, frame.Size.X*frame.Size.Y)
+	for y := 0; y < frame.Size.Y; y++ {
+		for x := 0; x < frame.Size.X; x++ {
+			colors[y*frame.Size.X+x] = s.palette.Colors[frame.Data[y*frame.Size.X+x]]
 		}
 	}
 
@@ -103,7 +103,7 @@ func (s *scene) updateTexture(window *platform.Window) error {
 	}
 
 	var err error
-	s.texture, err = window.CreateTextureRgba(colors, frame.Width, frame.Height)
+	s.texture, err = window.CreateTextureRgba(colors, frame.Size)
 	if err != nil {
 		return err
 	}

@@ -16,3 +16,10 @@ type Rect4i struct {
 	W int
 	H int
 }
+
+type Color4b struct {
+	R byte
+	G byte
+	B byte
+	A byte
+}
