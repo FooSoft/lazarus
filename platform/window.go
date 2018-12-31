@@ -1,6 +1,8 @@
 package platform
 
 import (
+	"errors"
+
 	"github.com/FooSoft/lazarus/math"
 	"github.com/FooSoft/lazarus/platform/imgui"
 	"github.com/go-gl/gl/v2.1/gl"
@@ -75,6 +77,18 @@ func (w *Window) Destroy() error {
 	}
 	w.sdlWindow = nil
 
+	index := -1
+	for i, window := range singleton.windows {
+		if w == window {
+			index = i
+		}
+	}
+
+	if index < 0 {
+		return errors.New("platform does not contain window to destroy")
+	}
+
+	singleton.windows = append(singleton.windows[:index], singleton.windows[index+1:]...)
 	return nil
 }
 

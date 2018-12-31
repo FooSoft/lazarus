@@ -14,7 +14,7 @@ var (
 	ErrWasNotInit  = errors.New("platform was not initialized")
 )
 
-var state struct {
+var singleton struct {
 	isInit  bool
 	windows []*Window
 }
@@ -28,7 +28,7 @@ type Scene interface {
 }
 
 func Init() error {
-	if state.isInit {
+	if singleton.isInit {
 		return ErrAlreadyInit
 	}
 
@@ -42,29 +42,29 @@ func Init() error {
 		return err
 	}
 
-	state.isInit = true
+	singleton.isInit = true
 	return nil
 }
 
 func Shutdown() error {
-	if !state.isInit {
+	if !singleton.isInit {
 		return ErrWasNotInit
 	}
 
-	for _, w := range state.windows {
+	for _, w := range singleton.windows {
 		if err := w.Destroy(); err != nil {
 			return err
 		}
 	}
 
-	state.windows = nil
-	state.isInit = false
+	singleton.windows = nil
+	singleton.isInit = false
 
 	return nil
 }
 
 func CreateWindow(title string, width, height int, scene Scene) (*Window, error) {
-	if !state.isInit {
+	if !singleton.isInit {
 		return nil, ErrWasNotInit
 	}
 
@@ -73,13 +73,13 @@ func CreateWindow(title string, width, height int, scene Scene) (*Window, error)
 		return nil, err
 	}
 
-	state.windows = append(state.windows, window)
+	singleton.windows = append(singleton.windows, window)
 
 	return window, err
 }
 
 func ProcessEvents() error {
-	if !state.isInit {
+	if !singleton.isInit {
 		return ErrWasNotInit
 	}
 
@@ -87,9 +87,11 @@ func ProcessEvents() error {
 		advanceWindows()
 
 		for event := sdl.PollEvent(); event != nil; event = sdl.PollEvent() {
-			if !processEvent(event) {
+			switch event.(type) {
+			case *sdl.QuitEvent:
 				running = false
-				break
+			default:
+				processWindowEvents(event)
 			}
 		}
 
@@ -100,23 +102,13 @@ func ProcessEvents() error {
 }
 
 func advanceWindows() {
-	for _, window := range state.windows {
+	for _, window := range singleton.windows {
 		window.advance()
 	}
 }
 
-func processEvent(event sdl.Event) bool {
-	for _, window := range state.windows {
-		handled, _ := window.processEvent(event)
-		if handled {
-			return true
-		}
-	}
-
-	switch event.(type) {
-	case *sdl.QuitEvent:
-		return false
-	default:
-		return true
+func processWindowEvents(event sdl.Event) {
+	for _, window := range singleton.windows {
+		window.processEvent(event)
 	}
 }
