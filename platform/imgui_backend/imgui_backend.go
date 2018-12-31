@@ -21,6 +21,9 @@ var singleton struct {
 	lastTime    uint64
 	fontTexture uint32
 	context     *imgui.Context
+
+	windowSize math.Vec2i
+	bufferSize math.Vec2i
 }
 
 func Init() error {
@@ -81,10 +84,13 @@ func Shutdown() error {
 	return nil
 }
 
-func NewFrame(windowSize math.Vec2i) error {
+func BeginFrame(windowSize, bufferSize math.Vec2i) error {
 	if !singleton.isInit {
 		return ErrWasNotInit
 	}
+
+	singleton.windowSize = windowSize
+	singleton.bufferSize = bufferSize
 
 	if singleton.fontTexture == 0 {
 		singleton.fontTexture = createFontTexture()
@@ -182,14 +188,16 @@ func ProcessEvent(event sdl.Event) (bool, error) {
 
 // OpenGL2 Render function.
 // Note that this implementation is little overcomplicated because we are saving/setting up/restoring every OpenGL singleton explicitly, in order to be able to run within any OpenGL engine that doesn't do so.
-func Render(windowSize, fbSize math.Vec2i, drawData imgui.DrawData) error {
+func EndFrame() error {
 	if !singleton.isInit {
 		return ErrWasNotInit
 	}
 
+	imgui.Render()
+	drawData := imgui.RenderedDrawData()
 	drawData.ScaleClipRects(imgui.Vec2{
-		X: float32(fbSize.X) / float32(windowSize.X),
-		Y: float32(fbSize.Y) / float32(windowSize.Y),
+		X: float32(singleton.bufferSize.X) / float32(singleton.windowSize.X),
+		Y: float32(singleton.bufferSize.Y) / float32(singleton.windowSize.Y),
 	})
 
 	// We are using the OpenGL fixed pipeline to make the example code simpler to read!
@@ -221,11 +229,11 @@ func Render(windowSize, fbSize math.Vec2i, drawData imgui.DrawData) error {
 
 	// Setup viewport, orthographic projection matrix
 	// Our visible imgui space lies from draw_data->DisplayPos (top left) to draw_data->DisplayPos+data_data->DisplaySize (bottom right). DisplayMin is typically (0,0) for single viewport apps.
-	gl.Viewport(0, 0, int32(fbSize.X), int32(fbSize.Y))
+	gl.Viewport(0, 0, int32(singleton.bufferSize.X), int32(singleton.bufferSize.Y))
 	gl.MatrixMode(gl.PROJECTION)
 	gl.PushMatrix()
 	gl.LoadIdentity()
-	gl.Ortho(0, float64(windowSize.X), float64(windowSize.Y), 0, -1, 1)
+	gl.Ortho(0, float64(singleton.windowSize.X), float64(singleton.windowSize.Y), 0, -1, 1)
 	gl.MatrixMode(gl.MODELVIEW)
 	gl.PushMatrix()
 	gl.LoadIdentity()
@@ -253,7 +261,7 @@ func Render(windowSize, fbSize math.Vec2i, drawData imgui.DrawData) error {
 				command.CallUserCallback(commandList)
 			} else {
 				clipRect := command.ClipRect()
-				gl.Scissor(int32(clipRect.X), int32(fbSize.Y)-int32(clipRect.W), int32(clipRect.Z-clipRect.X), int32(clipRect.W-clipRect.Y))
+				gl.Scissor(int32(clipRect.X), int32(singleton.bufferSize.Y)-int32(clipRect.W), int32(clipRect.Z-clipRect.X), int32(clipRect.W-clipRect.Y))
 				gl.BindTexture(gl.TEXTURE_2D, uint32(command.TextureID()))
 				gl.DrawElements(gl.TRIANGLES, int32(command.ElementCount()), uint32(drawType), unsafe.Pointer(indexBufferOffset))
 			}

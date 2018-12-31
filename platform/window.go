@@ -1,7 +1,6 @@
 package platform
 
 import (
-	imgui "github.com/FooSoft/imgui-go"
 	"github.com/FooSoft/lazarus/math"
 	"github.com/FooSoft/lazarus/platform/imgui_backend"
 	"github.com/go-gl/gl/v2.1/gl"
@@ -94,22 +93,23 @@ func (w *Window) RenderTexture(texture *Texture, position math.Vec2i) {
 }
 
 func (w *Window) advance() {
-	size := w.displaySize()
-	imgui_backend.NewFrame(size)
+	w.sdlWindow.GLMakeCurrent(w.sdlGlContext)
 
-	gl.Viewport(0, 0, int32(size.X), int32(size.Y))
+	displaySize := w.displaySize()
+	bufferSize := w.bufferSize()
+	imgui_backend.BeginFrame(displaySize, bufferSize)
+
+	gl.Viewport(0, 0, int32(displaySize.X), int32(displaySize.Y))
 	gl.Clear(gl.COLOR_BUFFER_BIT)
 	gl.MatrixMode(gl.PROJECTION)
 	gl.LoadIdentity()
-	gl.Ortho(0, float64(size.X), float64(size.Y), 0, -1, 1)
+	gl.Ortho(0, float64(displaySize.X), float64(displaySize.Y), 0, -1, 1)
 	gl.MatrixMode(gl.MODELVIEW)
 	gl.LoadIdentity()
 
 	w.scene.Advance(w)
 
-	imgui.Render()
-	imgui_backend.Render(w.displaySize(), w.bufferSize(), imgui.RenderedDrawData())
-
+	imgui_backend.EndFrame()
 	w.sdlWindow.GLSwap()
 }
 
