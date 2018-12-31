@@ -1,120 +1,41 @@
 package imgui_backend
 
 import (
-	"errors"
 	"unsafe"
 
 	"github.com/FooSoft/imgui-go"
-	"github.com/FooSoft/lazarus/math"
 	"github.com/go-gl/gl/v2.1/gl"
 	"github.com/veandco/go-sdl2/sdl"
 )
 
-var (
-	ErrAlreadyInit = errors.New("imgui backend is already initialized")
-	ErrWasNotInit  = errors.New("imgui backend was not initialized")
-)
-
 var singleton struct {
-	isInit      bool
-	buttonsDown [3]bool
-	lastTime    uint64
-	fontTexture uint32
-	context     *imgui.Context
-
-	windowSize math.Vec2i
-	bufferSize math.Vec2i
+	context  *imgui.Context
+	refCount int
 }
 
-func Init() error {
-	if singleton.isInit {
-		return ErrAlreadyInit
-	}
-
-	singleton.context = imgui.CreateContext(nil)
-
-	keys := map[int]int{
-		imgui.KeyTab:        sdl.SCANCODE_TAB,
-		imgui.KeyLeftArrow:  sdl.SCANCODE_LEFT,
-		imgui.KeyRightArrow: sdl.SCANCODE_RIGHT,
-		imgui.KeyUpArrow:    sdl.SCANCODE_UP,
-		imgui.KeyDownArrow:  sdl.SCANCODE_DOWN,
-		imgui.KeyPageUp:     sdl.SCANCODE_PAGEUP,
-		imgui.KeyPageDown:   sdl.SCANCODE_PAGEDOWN,
-		imgui.KeyHome:       sdl.SCANCODE_HOME,
-		imgui.KeyEnd:        sdl.SCANCODE_END,
-		imgui.KeyInsert:     sdl.SCANCODE_INSERT,
-		imgui.KeyDelete:     sdl.SCANCODE_DELETE,
-		imgui.KeyBackspace:  sdl.SCANCODE_BACKSPACE,
-		imgui.KeySpace:      sdl.SCANCODE_BACKSPACE,
-		imgui.KeyEnter:      sdl.SCANCODE_RETURN,
-		imgui.KeyEscape:     sdl.SCANCODE_ESCAPE,
-		imgui.KeyA:          sdl.SCANCODE_A,
-		imgui.KeyC:          sdl.SCANCODE_C,
-		imgui.KeyV:          sdl.SCANCODE_V,
-		imgui.KeyX:          sdl.SCANCODE_X,
-		imgui.KeyY:          sdl.SCANCODE_Y,
-		imgui.KeyZ:          sdl.SCANCODE_Z,
-	}
-
-	// Keyboard mapping. ImGui will use those indices to peek into the io.KeysDown[] array.
-	io := imgui.CurrentIO()
-	for imguiKey, nativeKey := range keys {
-		io.KeyMap(imguiKey, nativeKey)
-	}
-
-	singleton.isInit = true
-
-	return nil
-}
-
-func Shutdown() error {
-	if !singleton.isInit {
-		return ErrWasNotInit
-	}
-
-	singleton.isInit = false
-
-	destroyFontTexture(singleton.fontTexture)
-	singleton.fontTexture = 0
-
-	singleton.context.Destroy()
-	singleton.context = nil
-
-	return nil
-}
-
-func BeginFrame(windowSize, bufferSize math.Vec2i) error {
-	if !singleton.isInit {
-		return ErrWasNotInit
-	}
-
-	singleton.windowSize = windowSize
-	singleton.bufferSize = bufferSize
-
-	if singleton.fontTexture == 0 {
-		singleton.fontTexture = createFontTexture()
-	}
-
+func (c *Context) BeginFrame() error {
 	// Setup display size (every frame to accommodate for window resizing)
 	io := imgui.CurrentIO()
-	io.SetDisplaySize(imgui.Vec2{X: float32(windowSize.X), Y: float32(windowSize.Y)})
+	io.SetDisplaySize(imgui.Vec2{
+		X: float32(c.displaySize.X),
+		Y: float32(c.displaySize.Y),
+	})
 
 	// Setup time step (we don't use SDL_GetTicks() because it is using millisecond resolution)
 	frequency := sdl.GetPerformanceFrequency()
 	currentTime := sdl.GetPerformanceCounter()
-	if singleton.lastTime > 0 {
-		io.SetDeltaTime(float32(currentTime-singleton.lastTime) / float32(frequency))
+	if c.lastTime > 0 {
+		io.SetDeltaTime(float32(currentTime-c.lastTime) / float32(frequency))
 	} else {
 		io.SetDeltaTime(1.0 / 60.0)
 	}
-	singleton.lastTime = currentTime
+	c.lastTime = currentTime
 
 	// If a mouse press event came, always pass it as "mouse held this frame", so we don't miss click-release events that are shorter than 1 frame.
 	x, y, state := sdl.GetMouseState()
 	for i, button := range []uint32{sdl.BUTTON_LEFT, sdl.BUTTON_RIGHT, sdl.BUTTON_MIDDLE} {
-		io.SetMouseButtonDown(i, singleton.buttonsDown[i] || (state&sdl.Button(button)) != 0)
-		singleton.buttonsDown[i] = false
+		io.SetMouseButtonDown(i, c.buttonsDown[i] || (state&sdl.Button(button)) != 0)
+		c.buttonsDown[i] = false
 	}
 
 	io.SetMousePosition(imgui.Vec2{X: float32(x), Y: float32(y)})
@@ -128,11 +49,7 @@ func BeginFrame(windowSize, bufferSize math.Vec2i) error {
 // - When io.WantCaptureKeyboard is true, do not dispatch keyboard input data to your main application.
 // Generally you may always pass all inputs to dear imgui, and hide them from your application based on those two flags.
 // If you have multiple SDL events and some of them are not meant to be used by dear imgui, you may need to filter events based on their windowID field.
-func ProcessEvent(event sdl.Event) (bool, error) {
-	if !singleton.isInit {
-		return false, ErrWasNotInit
-	}
-
+func (c *Context) ProcessEvent(event sdl.Event) (bool, error) {
 	switch io := imgui.CurrentIO(); event.GetType() {
 	case sdl.MOUSEWHEEL:
 		wheelEvent := event.(*sdl.MouseWheelEvent)
@@ -152,13 +69,13 @@ func ProcessEvent(event sdl.Event) (bool, error) {
 		buttonEvent := event.(*sdl.MouseButtonEvent)
 		switch buttonEvent.Button {
 		case sdl.BUTTON_LEFT:
-			singleton.buttonsDown[0] = true
+			c.buttonsDown[0] = true
 			break
 		case sdl.BUTTON_RIGHT:
-			singleton.buttonsDown[1] = true
+			c.buttonsDown[1] = true
 			break
 		case sdl.BUTTON_MIDDLE:
-			singleton.buttonsDown[2] = true
+			c.buttonsDown[2] = true
 			break
 		}
 		return true, nil
@@ -188,16 +105,12 @@ func ProcessEvent(event sdl.Event) (bool, error) {
 
 // OpenGL2 Render function.
 // Note that this implementation is little overcomplicated because we are saving/setting up/restoring every OpenGL singleton explicitly, in order to be able to run within any OpenGL engine that doesn't do so.
-func EndFrame() error {
-	if !singleton.isInit {
-		return ErrWasNotInit
-	}
-
+func (c *Context) EndFrame() error {
 	imgui.Render()
 	drawData := imgui.RenderedDrawData()
 	drawData.ScaleClipRects(imgui.Vec2{
-		X: float32(singleton.bufferSize.X) / float32(singleton.windowSize.X),
-		Y: float32(singleton.bufferSize.Y) / float32(singleton.windowSize.Y),
+		X: float32(c.bufferSize.X) / float32(c.displaySize.X),
+		Y: float32(c.bufferSize.Y) / float32(c.displaySize.Y),
 	})
 
 	// We are using the OpenGL fixed pipeline to make the example code simpler to read!
@@ -229,11 +142,11 @@ func EndFrame() error {
 
 	// Setup viewport, orthographic projection matrix
 	// Our visible imgui space lies from draw_data->DisplayPos (top left) to draw_data->DisplayPos+data_data->DisplaySize (bottom right). DisplayMin is typically (0,0) for single viewport apps.
-	gl.Viewport(0, 0, int32(singleton.bufferSize.X), int32(singleton.bufferSize.Y))
+	gl.Viewport(0, 0, int32(c.bufferSize.X), int32(c.bufferSize.Y))
 	gl.MatrixMode(gl.PROJECTION)
 	gl.PushMatrix()
 	gl.LoadIdentity()
-	gl.Ortho(0, float64(singleton.windowSize.X), float64(singleton.windowSize.Y), 0, -1, 1)
+	gl.Ortho(0, float64(c.displaySize.X), float64(c.displaySize.Y), 0, -1, 1)
 	gl.MatrixMode(gl.MODELVIEW)
 	gl.PushMatrix()
 	gl.LoadIdentity()
@@ -261,7 +174,7 @@ func EndFrame() error {
 				command.CallUserCallback(commandList)
 			} else {
 				clipRect := command.ClipRect()
-				gl.Scissor(int32(clipRect.X), int32(singleton.bufferSize.Y)-int32(clipRect.W), int32(clipRect.Z-clipRect.X), int32(clipRect.W-clipRect.Y))
+				gl.Scissor(int32(clipRect.X), int32(c.bufferSize.Y)-int32(clipRect.W), int32(clipRect.Z-clipRect.X), int32(clipRect.W-clipRect.Y))
 				gl.BindTexture(gl.TEXTURE_2D, uint32(command.TextureID()))
 				gl.DrawElements(gl.TRIANGLES, int32(command.ElementCount()), uint32(drawType), unsafe.Pointer(indexBufferOffset))
 			}
@@ -286,35 +199,4 @@ func EndFrame() error {
 	gl.Scissor(lastScissorBox[0], lastScissorBox[1], lastScissorBox[2], lastScissorBox[3])
 
 	return nil
-}
-
-func createFontTexture() uint32 {
-	// Build texture atlas
-	io := imgui.CurrentIO()
-	image := io.Fonts().TextureDataRGBA32()
-
-	// Upload texture to graphics system
-	var lastTexture int32
-	gl.GetIntegerv(gl.TEXTURE_BINDING_2D, &lastTexture)
-	var fontTexture uint32
-	gl.GenTextures(1, &fontTexture)
-	gl.BindTexture(gl.TEXTURE_2D, fontTexture)
-	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR)
-	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
-	gl.PixelStorei(gl.UNPACK_ROW_LENGTH, 0)
-	gl.TexImage2D(gl.TEXTURE_2D, 0, gl.RGBA, int32(image.Width), int32(image.Height), 0, gl.RGBA, gl.UNSIGNED_BYTE, image.Pixels)
-
-	// Store our identifier
-	io.Fonts().SetTextureID(imgui.TextureID(fontTexture))
-
-	// Restore state
-	gl.BindTexture(gl.TEXTURE_2D, uint32(lastTexture))
-	return fontTexture
-}
-
-func destroyFontTexture(fontTexture uint32) {
-	if fontTexture != 0 {
-		gl.DeleteTextures(1, &fontTexture)
-		imgui.CurrentIO().Fonts().SetTextureID(0)
-	}
 }

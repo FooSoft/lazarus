@@ -5,7 +5,6 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/FooSoft/lazarus/platform/imgui_backend"
 	"github.com/go-gl/gl/v2.1/gl"
 	"github.com/veandco/go-sdl2/sdl"
 )
@@ -43,10 +42,6 @@ func Init() error {
 		return err
 	}
 
-	if err := imgui_backend.Init(); err != nil {
-		return err
-	}
-
 	state.isInit = true
 	return nil
 }
@@ -60,10 +55,6 @@ func Shutdown() error {
 		if err := w.Destroy(); err != nil {
 			return err
 		}
-	}
-
-	if err := imgui_backend.Shutdown(); err != nil {
-		return err
 	}
 
 	state.windows = nil
@@ -115,15 +106,17 @@ func advanceWindows() {
 }
 
 func processEvent(event sdl.Event) bool {
-	handled, _ := imgui_backend.ProcessEvent(event)
-	if handled {
-		return true
+	for _, window := range state.windows {
+		handled, _ := window.processEvent(event)
+		if handled {
+			return true
+		}
 	}
 
 	switch event.(type) {
 	case *sdl.QuitEvent:
 		return false
+	default:
+		return true
 	}
-
-	return true
 }

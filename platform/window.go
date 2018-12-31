@@ -10,10 +10,15 @@ import (
 type Window struct {
 	sdlWindow    *sdl.Window
 	sdlGlContext sdl.GLContext
+	imguiContext *imgui_backend.Context
 	scene        Scene
 }
 
 func newWindow(title string, width, height int, scene Scene) (*Window, error) {
+	sdl.GLSetAttribute(sdl.GL_CONTEXT_MAJOR_VERSION, 2)
+	sdl.GLSetAttribute(sdl.GL_CONTEXT_MINOR_VERSION, 1)
+	sdl.GLSetAttribute(sdl.GL_DOUBLEBUFFER, 1)
+
 	sdlWindow, err := sdl.CreateWindow(
 		title,
 		sdl.WINDOWPOS_CENTERED,
@@ -32,11 +37,18 @@ func newWindow(title string, width, height int, scene Scene) (*Window, error) {
 		return nil, err
 	}
 
-	sdl.GLSetAttribute(sdl.GL_CONTEXT_MAJOR_VERSION, 2)
-	sdl.GLSetAttribute(sdl.GL_CONTEXT_MINOR_VERSION, 1)
-	sdl.GLSetAttribute(sdl.GL_DOUBLEBUFFER, 1)
+	w := &Window{
+		sdlWindow:    sdlWindow,
+		sdlGlContext: sdlGlContext,
+		scene:        scene,
+	}
 
-	w := &Window{sdlWindow, sdlGlContext, scene}
+	w.imguiContext, err = imgui_backend.CreateContext(w.DisplaySize(), w.BufferSize())
+	if err != nil {
+		w.Destroy()
+		return nil, err
+	}
+
 	if err := scene.Init(w); err != nil {
 		w.Destroy()
 		return nil, err
@@ -46,7 +58,7 @@ func newWindow(title string, width, height int, scene Scene) (*Window, error) {
 }
 
 func (w *Window) Destroy() error {
-	if w.sdlWindow == nil {
+	if w == nil || w.sdlWindow == nil {
 		return nil
 	}
 
@@ -92,12 +104,25 @@ func (w *Window) RenderTexture(texture *Texture, position math.Vec2i) {
 	gl.End()
 }
 
+func (w *Window) DisplaySize() math.Vec2i {
+	width, height := w.sdlWindow.GetSize()
+	return math.Vec2i{X: int(width), Y: int(height)}
+}
+
+func (w *Window) BufferSize() math.Vec2i {
+	width, height := w.sdlWindow.GLGetDrawableSize()
+	return math.Vec2i{X: int(width), Y: int(height)}
+}
+
 func (w *Window) advance() {
 	w.sdlWindow.GLMakeCurrent(w.sdlGlContext)
 
-	displaySize := w.displaySize()
-	bufferSize := w.bufferSize()
-	imgui_backend.BeginFrame(displaySize, bufferSize)
+	displaySize := w.DisplaySize()
+	w.imguiContext.SetDisplaySize(displaySize)
+	bufferSize := w.BufferSize()
+	w.imguiContext.SetBufferSize(bufferSize)
+
+	w.imguiContext.BeginFrame()
 
 	gl.Viewport(0, 0, int32(displaySize.X), int32(displaySize.Y))
 	gl.Clear(gl.COLOR_BUFFER_BIT)
@@ -109,16 +134,10 @@ func (w *Window) advance() {
 
 	w.scene.Advance(w)
 
-	imgui_backend.EndFrame()
+	w.imguiContext.EndFrame()
 	w.sdlWindow.GLSwap()
 }
 
-func (w *Window) displaySize() math.Vec2i {
-	width, height := w.sdlWindow.GetSize()
-	return math.Vec2i{X: int(width), Y: int(height)}
-}
-
-func (w *Window) bufferSize() math.Vec2i {
-	width, height := w.sdlWindow.GLGetDrawableSize()
-	return math.Vec2i{X: int(width), Y: int(height)}
+func (w *Window) processEvent(event sdl.Event) (bool, error) {
+	return w.imguiContext.ProcessEvent(event)
 }
