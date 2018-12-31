@@ -26,7 +26,7 @@ func newTextureFromRgba(colors []color.RGBA, width, height int) (*Texture, error
 	gl.TexImage2D(gl.TEXTURE_2D, 0, gl.RGBA, int32(width), int32(height), 0, gl.RGBA, gl.UNSIGNED_BYTE, unsafe.Pointer(&colors[0]))
 
 	gl.BindTexture(gl.TEXTURE_2D, uint32(glHandleLast))
-	return &Texture{math.Vec2i{width, height}, glHandle}, nil
+	return &Texture{size: math.Vec2i{X: width, Y: height}, glHandle: glHandle}, nil
 }
 
 func (t *Texture) Handle() Handle {

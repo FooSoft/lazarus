@@ -20,7 +20,7 @@ var state struct {
 	windows []*Window
 }
 
-type Handle uint32
+type Handle uintptr
 
 type Scene interface {
 	Init(window *Window) error
