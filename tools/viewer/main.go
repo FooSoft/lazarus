@@ -3,9 +3,9 @@ package main
 import (
 	"flag"
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
+	"time"
 
 	imgui "github.com/FooSoft/imgui-go"
 	"github.com/FooSoft/lazarus/formats/dat"
@@ -152,11 +152,21 @@ func main() {
 	scene := &scene{sprite: sprite, palette: palette}
 	window, err := platform.CreateWindow("Viewer", 1280, 720, scene)
 	if err != nil {
-		log.Fatal(err)
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
 	}
 	defer window.Destroy()
 
-	if err := platform.ProcessEvents(); err != nil {
-		log.Fatal(err)
+	for {
+		run, err := platform.Advance()
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+		if !run {
+			break
+		}
+
+		<-time.After(time.Millisecond * 25)
 	}
 }

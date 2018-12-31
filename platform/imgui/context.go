@@ -15,7 +15,7 @@ type Context struct {
 	bufferSize  math.Vec2i
 }
 
-func CreateContext(displaySize, bufferSize math.Vec2i) (*Context, error) {
+func New(displaySize, bufferSize math.Vec2i) (*Context, error) {
 	singleton.refCount++
 	if singleton.refCount == 1 {
 		singleton.context = imgui.CreateContext(nil)

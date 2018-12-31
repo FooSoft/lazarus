@@ -3,7 +3,6 @@ package platform
 import (
 	"errors"
 	"runtime"
-	"time"
 
 	"github.com/go-gl/gl/v2.1/gl"
 	"github.com/veandco/go-sdl2/sdl"
@@ -46,6 +45,27 @@ func Init() error {
 	return nil
 }
 
+func Advance() (bool, error) {
+	if !singleton.isInit {
+		return false, ErrWasNotInit
+	}
+
+	advanceWindows()
+
+	for event := sdl.PollEvent(); event != nil; event = sdl.PollEvent() {
+		switch event.(type) {
+		case *sdl.QuitEvent:
+			return false, nil
+		default:
+			if err := processWindowEvents(event); err != nil {
+				return false, err
+			}
+		}
+	}
+
+	return true, nil
+}
+
 func Shutdown() error {
 	if !singleton.isInit {
 		return ErrWasNotInit
@@ -68,37 +88,28 @@ func CreateWindow(title string, width, height int, scene Scene) (*Window, error)
 		return nil, ErrWasNotInit
 	}
 
-	window, err := newWindow(title, width, height, scene)
+	w, err := newWindow(title, width, height, scene)
 	if err != nil {
 		return nil, err
 	}
 
-	singleton.windows = append(singleton.windows, window)
-
-	return window, err
+	appendWindow(w)
+	return w, err
 }
 
-func ProcessEvents() error {
-	if !singleton.isInit {
-		return ErrWasNotInit
-	}
+func appendWindow(window *Window) {
+	singleton.windows = append(singleton.windows, window)
+}
 
-	for running := true; running; {
-		advanceWindows()
-
-		for event := sdl.PollEvent(); event != nil; event = sdl.PollEvent() {
-			switch event.(type) {
-			case *sdl.QuitEvent:
-				running = false
-			default:
-				processWindowEvents(event)
-			}
+func removeWindow(window *Window) bool {
+	for i, w := range singleton.windows {
+		if w == window {
+			singleton.windows = append(singleton.windows[:i], singleton.windows[i+1:]...)
+			return true
 		}
-
-		<-time.After(time.Millisecond * 25)
 	}
 
-	return nil
+	return false
 }
 
 func advanceWindows() {
@@ -107,8 +118,12 @@ func advanceWindows() {
 	}
 }
 
-func processWindowEvents(event sdl.Event) {
+func processWindowEvents(event sdl.Event) error {
 	for _, window := range singleton.windows {
-		window.processEvent(event)
+		if _, err := window.processEvent(event); err != nil {
+			return err
+		}
 	}
+
+	return nil
 }
