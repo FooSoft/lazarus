@@ -2,12 +2,13 @@ package dat
 
 import (
 	"encoding/binary"
-	imageColor "image/color"
 	"io"
+
+	"github.com/FooSoft/lazarus/math"
 )
 
 type Palette struct {
-	Colors [256]imageColor.RGBA
+	Colors [256]math.Color3b
 }
 
 type color struct {
@@ -24,7 +25,7 @@ func NewFromReader(reader io.Reader) (*Palette, error) {
 
 	palette := new(Palette)
 	for i, color := range colors {
-		palette.Colors[i] = imageColor.RGBA{color.R, color.G, color.B, 0xff}
+		palette.Colors[i] = math.Color3b{R: color.R, G: color.G, B: color.B}
 	}
 
 	return palette, nil
@@ -34,7 +35,7 @@ func NewFromGrayscale() *Palette {
 	palette := new(Palette)
 	for i := 0; i < 256; i++ {
 		value := uint8(i)
-		palette.Colors[i] = imageColor.RGBA{value, value, value, 0xff}
+		palette.Colors[i] = math.Color3b{R: value, G: value, B: value}
 	}
 
 	return palette

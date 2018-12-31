@@ -1,8 +1,6 @@
 package platform
 
 import (
-	"image/color"
-
 	imgui "github.com/FooSoft/imgui-go"
 	"github.com/FooSoft/lazarus/math"
 	"github.com/FooSoft/lazarus/platform/imgui_backend"
@@ -69,8 +67,12 @@ func (w *Window) Destroy() error {
 	return nil
 }
 
-func (w *Window) CreateTextureRgba(colors []color.RGBA, size math.Vec2i) (*Texture, error) {
+func (w *Window) CreateTextureRgba(colors []math.Color4b, size math.Vec2i) (*Texture, error) {
 	return newTextureFromRgba(colors, size)
+}
+
+func (w *Window) CreateTextureRgb(colors []math.Color3b, size math.Vec2i) (*Texture, error) {
+	return newTextureFromRgb(colors, size)
 }
 
 func (w *Window) RenderTexture(texture *Texture, position math.Vec2i) {

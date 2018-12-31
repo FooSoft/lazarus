@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"image"
+	"image/color"
 	"image/png"
 	"os"
 	"path"
@@ -39,10 +40,12 @@ func extractSprite(spritePath string, palette *dat.Palette, targetDir string) er
 
 	for di, direction := range sprite.Directions {
 		for fi, frame := range direction.Frames {
-			img := image.NewRGBA(image.Rect(0, 0, frame.Width, frame.Height))
-			for y := 0; y < frame.Height; y++ {
-				for x := 0; x < frame.Width; x++ {
-					img.Set(x, y, palette.Colors[frame.Data[y*frame.Width+x]])
+			img := image.NewRGBA(image.Rect(0, 0, frame.Size.X, frame.Size.Y))
+			for y := 0; y < frame.Size.Y; y++ {
+				for x := 0; x < frame.Size.X; x++ {
+					colorSrc := palette.Colors[frame.Data[y*frame.Size.X+x]]
+					colorDst := color.RGBA{colorSrc.R, colorSrc.G, colorSrc.B, 0xff}
+					img.Set(x, y, colorDst)
 				}
 			}
 

@@ -3,7 +3,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"image/color"
 	"log"
 	"os"
 	"path/filepath"
@@ -11,6 +10,7 @@ import (
 	imgui "github.com/FooSoft/imgui-go"
 	"github.com/FooSoft/lazarus/formats/dat"
 	"github.com/FooSoft/lazarus/formats/dc6"
+	"github.com/FooSoft/lazarus/math"
 	"github.com/FooSoft/lazarus/platform"
 )
 
@@ -89,7 +89,7 @@ func (s *scene) Advance(window *platform.Window) error {
 
 func (s *scene) updateTexture(window *platform.Window) error {
 	frame := s.sprite.Directions[s.directionIndex].Frames[s.frameIndex]
-	colors := make([]color.RGBA, frame.Size.X*frame.Size.Y)
+	colors := make([]math.Color3b, frame.Size.X*frame.Size.Y)
 	for y := 0; y < frame.Size.Y; y++ {
 		for x := 0; x < frame.Size.X; x++ {
 			colors[y*frame.Size.X+x] = s.palette.Colors[frame.Data[y*frame.Size.X+x]]
@@ -103,7 +103,7 @@ func (s *scene) updateTexture(window *platform.Window) error {
 	}
 
 	var err error
-	s.texture, err = window.CreateTextureRgba(colors, frame.Size)
+	s.texture, err = window.CreateTextureRgb(colors, frame.Size)
 	if err != nil {
 		return err
 	}
