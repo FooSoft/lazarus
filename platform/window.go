@@ -2,7 +2,7 @@ package platform
 
 import (
 	"github.com/FooSoft/lazarus/math"
-	"github.com/FooSoft/lazarus/platform/imgui_backend"
+	"github.com/FooSoft/lazarus/platform/imgui"
 	"github.com/go-gl/gl/v2.1/gl"
 	"github.com/veandco/go-sdl2/sdl"
 )
