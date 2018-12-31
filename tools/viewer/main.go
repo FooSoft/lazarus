@@ -66,7 +66,6 @@ func (s *scene) Advance(window *platform.Window) error {
 	}
 	frame := direction.Frames[frameIndex]
 	imgui.SliderInt("Frame", &frameIndex, 0, int32(len(direction.Frames))-1)
-
 	imgui.Text(fmt.Sprintf("Height: %d", frame.Height))
 	imgui.Text(fmt.Sprintf("Width: %d", frame.Width))
 	imgui.Text(fmt.Sprintf("OffsetX: %d", frame.OffsetX))
@@ -87,11 +86,7 @@ func (s *scene) Advance(window *platform.Window) error {
 		}
 	}
 
-	window.RenderTexture(
-		s.texture,
-		math.Rect4i{X: 0, Y: 0, W: 256, H: 256},
-		math.Rect4i{X: 0, Y: 0, W: 256, H: 256},
-	)
+	window.RenderTexture(s.texture, math.Vec2i{X: 0, Y: 0})
 
 	s.directionIndex = directionIndex
 	s.frameIndex = frameIndex

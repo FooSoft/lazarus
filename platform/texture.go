@@ -4,47 +4,44 @@ import (
 	"image/color"
 	"unsafe"
 
-	"github.com/veandco/go-sdl2/sdl"
+	"github.com/FooSoft/lazarus/math"
+	"github.com/go-gl/gl/v2.1/gl"
 )
 
 type Texture struct {
-	sdlTexture *sdl.Texture
+	size     math.Vec2i
+	glHandle uint32
 }
 
-func newTextureFromRgba(renderer *sdl.Renderer, colors []color.RGBA, width, height int) (*Texture, error) {
-	surface, err := sdl.CreateRGBSurfaceFrom(
-		unsafe.Pointer(&colors[0]),
-		int32(width),
-		int32(height),
-		32,
-		width*4,
-		0x000000ff,
-		0x0000ff00,
-		0x00ff0000,
-		0xff000000,
-	)
+func newTextureFromRgba(colors []color.RGBA, width, height int) (*Texture, error) {
+	var glHandleLast int32
+	gl.GetIntegerv(gl.TEXTURE_BINDING_2D, &glHandleLast)
 
-	if err != nil {
-		return nil, nil
-	}
+	var glHandle uint32
+	gl.GenTextures(1, &glHandle)
+	gl.BindTexture(gl.TEXTURE_2D, glHandle)
+	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR)
+	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
+	gl.PixelStorei(gl.UNPACK_ROW_LENGTH, 0)
+	gl.TexImage2D(gl.TEXTURE_2D, 0, gl.RGBA, int32(width), int32(height), 0, gl.RGBA, gl.UNSIGNED_BYTE, unsafe.Pointer(&colors[0]))
 
-	sdlTexture, err := renderer.CreateTextureFromSurface(surface)
-	if err != nil {
-		surface.Free()
-	}
+	gl.BindTexture(gl.TEXTURE_2D, uint32(glHandleLast))
+	return &Texture{math.Vec2i{width, height}, glHandle}, nil
+}
 
-	return &Texture{sdlTexture}, nil
+func (t *Texture) Handle() Handle {
+	return Handle(t.glHandle)
+}
+
+func (t *Texture) Size() math.Vec2i {
+	return t.size
 }
 
 func (t *Texture) Destroy() error {
-	if t == nil {
-		return nil
+	if t.glHandle != 0 {
+		gl.DeleteTextures(1, &t.glHandle)
+		t.glHandle = 0
 	}
 
-	if err := t.sdlTexture.Destroy(); err != nil {
-		return err
-	}
-
-	t.sdlTexture = nil
 	return nil
 }

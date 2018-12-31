@@ -6,13 +6,14 @@ import (
 	imgui "github.com/FooSoft/imgui-go"
 	"github.com/FooSoft/lazarus/math"
 	"github.com/FooSoft/lazarus/platform/imgui_backend"
+	"github.com/go-gl/gl/v2.1/gl"
 	"github.com/veandco/go-sdl2/sdl"
 )
 
 type Window struct {
-	sdlWindow   *sdl.Window
-	sdlRenderer *sdl.Renderer
-	scene       Scene
+	sdlWindow    *sdl.Window
+	sdlGlContext sdl.GLContext
+	scene        Scene
 }
 
 func newWindow(title string, width, height int, scene Scene) (*Window, error) {
@@ -28,18 +29,23 @@ func newWindow(title string, width, height int, scene Scene) (*Window, error) {
 		return nil, err
 	}
 
-	sdlRenderer, err := sdl.CreateRenderer(sdlWindow, -1, sdl.RENDERER_ACCELERATED)
+	sdlGlContext, err := sdlWindow.GLCreateContext()
 	if err != nil {
 		sdlWindow.Destroy()
 		return nil, err
 	}
 
-	window := &Window{sdlWindow, sdlRenderer, scene}
-	if err := scene.Init(window); err != nil {
+	sdl.GLSetAttribute(sdl.GL_CONTEXT_MAJOR_VERSION, 2)
+	sdl.GLSetAttribute(sdl.GL_CONTEXT_MINOR_VERSION, 1)
+	sdl.GLSetAttribute(sdl.GL_DOUBLEBUFFER, 1)
+
+	w := &Window{sdlWindow, sdlGlContext, scene}
+	if err := scene.Init(w); err != nil {
+		w.Destroy()
 		return nil, err
 	}
 
-	return window, nil
+	return w, nil
 }
 
 func (w *Window) Destroy() error {
@@ -50,36 +56,58 @@ func (w *Window) Destroy() error {
 	if err := w.scene.Shutdown(w); err != nil {
 		return err
 	}
+	w.scene = nil
+
+	sdl.GLDeleteContext(w.sdlGlContext)
+	w.sdlGlContext = nil
 
 	if err := w.sdlWindow.Destroy(); err != nil {
 		return err
 	}
-
 	w.sdlWindow = nil
 
 	return nil
 }
 
 func (w *Window) CreateTextureRgba(colors []color.RGBA, width, height int) (*Texture, error) {
-	return newTextureFromRgba(w.sdlRenderer, colors, width, height)
+	return newTextureFromRgba(colors, width, height)
 }
 
-func (w *Window) RenderTexture(texture *Texture, srcRect, dstRect math.Rect4i) {
-	w.sdlRenderer.Copy(
-		texture.sdlTexture,
-		&sdl.Rect{X: int32(srcRect.X), Y: int32(srcRect.Y), W: int32(srcRect.W), H: int32(srcRect.H)},
-		&sdl.Rect{X: int32(dstRect.X), Y: int32(dstRect.Y), W: int32(dstRect.W), H: int32(dstRect.H)},
-	)
+func (w *Window) RenderTexture(texture *Texture, position math.Vec2i) {
+	size := texture.Size()
+
+	gl.Enable(gl.TEXTURE_2D)
+	gl.BindTexture(gl.TEXTURE_2D, uint32(texture.Handle()))
+
+	gl.Begin(gl.QUADS)
+	gl.TexCoord2f(0, 0)
+	gl.Vertex2f(0, 0)
+	gl.TexCoord2f(0, 1)
+	gl.Vertex2f(0, float32(size.Y))
+	gl.TexCoord2f(1, 1)
+	gl.Vertex2f(float32(size.X), float32(size.Y))
+	gl.TexCoord2f(1, 0)
+	gl.Vertex2f(float32(size.X), 0)
+	gl.End()
 }
 
 func (w *Window) advance() {
-	imgui_backend.NewFrame(w.displaySize())
-	w.sdlRenderer.Clear()
+	size := w.displaySize()
+	imgui_backend.NewFrame(size)
+
+	gl.Viewport(0, 0, int32(size.X), int32(size.Y))
+	gl.Clear(gl.COLOR_BUFFER_BIT)
+	gl.MatrixMode(gl.PROJECTION)
+	gl.LoadIdentity()
+	gl.Ortho(0, float64(size.X), float64(size.Y), 0, -1, 1)
+	gl.MatrixMode(gl.MODELVIEW)
+	gl.LoadIdentity()
 
 	w.scene.Advance(w)
 
 	imgui.Render()
 	imgui_backend.Render(w.displaySize(), w.bufferSize(), imgui.RenderedDrawData())
+
 	w.sdlWindow.GLSwap()
 }
 
