@@ -20,8 +20,8 @@ type frameHeader struct {
 	Flip    uint32
 	Width   uint32
 	Height  uint32
-	OffsetX uint32
-	OffsetY uint32
+	OffsetX int32
+	OffsetY int32
 	_       uint32 // unused: allocSize
 	_       uint32 // unused: nextBlock
 	Length  uint32
