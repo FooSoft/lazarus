@@ -2,5 +2,5 @@
 	path = formats/mpq/stormlib
 	url = https://github.com/ladislav-zezula/StormLib.git
 [submodule "platform/imgui/cimgui"]
-	path = platform/imgui/cimgui
+	path = platform/imgui/imgui_wrapper/cimgui
 	url = https://github.com/cimgui/cimgui.git
