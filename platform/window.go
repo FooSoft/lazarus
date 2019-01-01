@@ -14,7 +14,7 @@ type Window struct {
 	scene        Scene
 }
 
-func newWindow(title string, width, height int, scene Scene) (*Window, error) {
+func newWindow(title string, size math.Vec2i, scene Scene) (*Window, error) {
 	sdl.GLSetAttribute(sdl.GL_CONTEXT_MAJOR_VERSION, 2)
 	sdl.GLSetAttribute(sdl.GL_CONTEXT_MINOR_VERSION, 1)
 	sdl.GLSetAttribute(sdl.GL_DOUBLEBUFFER, 1)
@@ -23,8 +23,8 @@ func newWindow(title string, width, height int, scene Scene) (*Window, error) {
 		title,
 		sdl.WINDOWPOS_CENTERED,
 		sdl.WINDOWPOS_CENTERED,
-		int32(width),
-		int32(height),
+		int32(size.X),
+		int32(size.Y),
 		sdl.WINDOW_OPENGL,
 	)
 	if err != nil {
@@ -40,8 +40,9 @@ func newWindow(title string, width, height int, scene Scene) (*Window, error) {
 	w := &Window{
 		sdlWindow:    sdlWindow,
 		sdlGlContext: sdlGlContext,
-		scene:        scene,
 	}
+
+	w.makeCurrent()
 
 	w.imguiContext, err = imgui_backend.New(w.DisplaySize(), w.BufferSize())
 	if err != nil {
@@ -49,7 +50,7 @@ func newWindow(title string, width, height int, scene Scene) (*Window, error) {
 		return nil, err
 	}
 
-	if err := scene.Init(w); err != nil {
+	if err := w.SetScene(scene); err != nil {
 		w.Destroy()
 		return nil, err
 	}
@@ -57,15 +58,43 @@ func newWindow(title string, width, height int, scene Scene) (*Window, error) {
 	return w, nil
 }
 
+func (w *Window) SetScene(scene Scene) error {
+	if w.scene == scene {
+		return nil
+	}
+
+	if sceneDestroyer, ok := w.scene.(SceneDestroyer); ok {
+		if err := sceneDestroyer.Destroy(w); err != nil {
+			return err
+		}
+	}
+
+	w.scene = scene
+
+	if sceneCreator, ok := scene.(SceneCreator); ok {
+		if err := sceneCreator.Create(w); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func (w *Window) Destroy() error {
 	if w == nil || w.sdlWindow == nil {
 		return nil
 	}
 
-	if err := w.scene.Shutdown(w); err != nil {
+	w.makeCurrent()
+
+	if err := w.SetScene(nil); err != nil {
 		return err
 	}
-	w.scene = nil
+
+	if err := w.imguiContext.Destroy(); err != nil {
+		return err
+	}
+	w.imguiContext = nil
 
 	sdl.GLDeleteContext(w.sdlGlContext)
 	w.sdlGlContext = nil
@@ -115,8 +144,8 @@ func (w *Window) BufferSize() math.Vec2i {
 	return math.Vec2i{X: int(width), Y: int(height)}
 }
 
-func (w *Window) advance() {
-	w.sdlWindow.GLMakeCurrent(w.sdlGlContext)
+func (w *Window) advance() (bool, error) {
+	w.makeCurrent()
 
 	displaySize := w.DisplaySize()
 	w.imguiContext.SetDisplaySize(displaySize)
@@ -133,12 +162,23 @@ func (w *Window) advance() {
 	gl.MatrixMode(gl.MODELVIEW)
 	gl.LoadIdentity()
 
-	w.scene.Advance(w)
+	if sceneAdvancer, ok := w.scene.(SceneAdvancer); ok {
+		if err := sceneAdvancer.Advance(w); err != nil {
+			return false, err
+		}
+	}
 
 	w.imguiContext.EndFrame()
 	w.sdlWindow.GLSwap()
+
+	return w.scene != nil, nil
 }
 
 func (w *Window) processEvent(event sdl.Event) (bool, error) {
 	return w.imguiContext.ProcessEvent(event)
+}
+
+func (w *Window) makeCurrent() {
+	w.sdlWindow.GLMakeCurrent(w.sdlGlContext)
+
 }

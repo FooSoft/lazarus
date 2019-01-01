@@ -1,56 +1,24 @@
 package platform
 
 import (
-	"errors"
 	"runtime"
 
+	"github.com/FooSoft/lazarus/math"
 	"github.com/go-gl/gl/v2.1/gl"
 	"github.com/veandco/go-sdl2/sdl"
 )
 
-var (
-	ErrAlreadyInit = errors.New("platform is already initialized")
-	ErrWasNotInit  = errors.New("platform was not initialized")
-)
-
 var singleton struct {
-	isInit  bool
-	windows []*Window
+	sdlIsInit bool
+	windows   []*Window
 }
 
 type Handle uintptr
 
-type Scene interface {
-	Init(window *Window) error
-	Advance(window *Window) error
-	Shutdown(window *Window) error
-}
-
-func Init() error {
-	if singleton.isInit {
-		return ErrAlreadyInit
-	}
-
-	runtime.LockOSThread()
-
-	if err := sdl.Init(sdl.INIT_VIDEO); err != nil {
-		return err
-	}
-
-	if err := gl.Init(); err != nil {
-		return err
-	}
-
-	singleton.isInit = true
-	return nil
-}
-
 func Advance() (bool, error) {
-	if !singleton.isInit {
-		return false, ErrWasNotInit
+	if err := advanceWindows(); err != nil {
+		return false, err
 	}
-
-	advanceWindows()
 
 	for event := sdl.PollEvent(); event != nil; event = sdl.PollEvent() {
 		switch event.(type) {
@@ -63,32 +31,25 @@ func Advance() (bool, error) {
 		}
 	}
 
-	return true, nil
+	return len(singleton.windows) > 0, nil
 }
 
-func Shutdown() error {
-	if !singleton.isInit {
-		return ErrWasNotInit
-	}
+func NewWindow(title string, size math.Vec2i, scene Scene) (*Window, error) {
+	if !singleton.sdlIsInit {
+		runtime.LockOSThread()
 
-	for _, w := range singleton.windows {
-		if err := w.Destroy(); err != nil {
-			return err
+		if err := sdl.Init(sdl.INIT_VIDEO); err != nil {
+			return nil, err
 		}
+
+		if err := gl.Init(); err != nil {
+			return nil, err
+		}
+
+		singleton.sdlIsInit = true
 	}
 
-	singleton.windows = nil
-	singleton.isInit = false
-
-	return nil
-}
-
-func CreateWindow(title string, width, height int, scene Scene) (*Window, error) {
-	if !singleton.isInit {
-		return nil, ErrWasNotInit
-	}
-
-	w, err := newWindow(title, width, height, scene)
+	w, err := newWindow(title, size, scene)
 	if err != nil {
 		return nil, err
 	}
@@ -112,10 +73,23 @@ func removeWindow(window *Window) bool {
 	return false
 }
 
-func advanceWindows() {
+func advanceWindows() error {
+	var windowsToRemove []*Window
 	for _, window := range singleton.windows {
-		window.advance()
+		run, err := window.advance()
+		if err != nil {
+			return err
+		}
+		if !run {
+			windowsToRemove = append(windowsToRemove, window)
+		}
 	}
+
+	for _, window := range windowsToRemove {
+		removeWindow(window)
+	}
+
+	return nil
 }
 
 func processWindowEvents(event sdl.Event) error {

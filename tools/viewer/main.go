@@ -41,15 +41,7 @@ type scene struct {
 	frameIndex     int32
 }
 
-func (s *scene) Init(window *platform.Window) error {
-	return nil
-}
-
-func (s *scene) Shutdown(window *platform.Window) error {
-	if s.texture == nil {
-		return nil
-	}
-
+func (s *scene) Destroy(window *platform.Window) error {
 	return s.texture.Destroy()
 }
 
@@ -76,6 +68,10 @@ func (s *scene) Advance(window *platform.Window) error {
 	imgui.SliderInt("Frame", &frameIndex, 0, int32(len(direction.Frames))-1)
 	imgui.Text(fmt.Sprintf("Size: %+v", frame.Size))
 	imgui.Text(fmt.Sprintf("Offset: %+v", frame.Offset))
+
+	if imgui.Button("Exit") {
+		window.SetScene(nil)
+	}
 
 	if directionIndex != s.directionIndex || frameIndex != s.frameIndex {
 		s.directionIndex = directionIndex
@@ -146,11 +142,8 @@ func main() {
 		palette = dat.NewFromGrayscale()
 	}
 
-	platform.Init()
-	defer platform.Shutdown()
-
 	scene := &scene{sprite: sprite, palette: palette}
-	window, err := platform.CreateWindow("Viewer", 1280, 720, scene)
+	window, err := platform.NewWindow("Viewer", math.Vec2i{X: 1024, Y: 768}, scene)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
