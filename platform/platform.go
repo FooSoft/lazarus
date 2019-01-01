@@ -1,6 +1,7 @@
 package platform
 
 import (
+	"log"
 	"runtime"
 
 	"github.com/FooSoft/lazarus/math"
@@ -38,10 +39,16 @@ func NewWindow(title string, size math.Vec2i, scene Scene) (*Window, error) {
 	if !singleton.sdlIsInit {
 		runtime.LockOSThread()
 
+		log.Println("sdl global init")
 		if err := sdl.Init(sdl.INIT_VIDEO); err != nil {
 			return nil, err
 		}
 
+		sdl.GLSetAttribute(sdl.GL_CONTEXT_MAJOR_VERSION, 2)
+		sdl.GLSetAttribute(sdl.GL_CONTEXT_MINOR_VERSION, 1)
+		sdl.GLSetAttribute(sdl.GL_DOUBLEBUFFER, 1)
+
+		log.Println("opengl global init")
 		if err := gl.Init(); err != nil {
 			return nil, err
 		}

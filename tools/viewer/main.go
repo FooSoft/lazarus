@@ -41,6 +41,10 @@ type scene struct {
 	frameIndex     int32
 }
 
+func (s *scene) Name() string {
+	return "Viewer"
+}
+
 func (s *scene) Destroy(window *platform.Window) error {
 	return s.texture.Destroy()
 }
@@ -143,7 +147,7 @@ func main() {
 	}
 
 	scene := &scene{sprite: sprite, palette: palette}
-	window, err := platform.NewWindow("Viewer", math.Vec2i{X: 1024, Y: 768}, scene)
+	window, err := platform.NewWindow("viewer", math.Vec2i{X: 1024, Y: 768}, scene)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)

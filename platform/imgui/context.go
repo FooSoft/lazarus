@@ -1,6 +1,8 @@
 package imgui_backend
 
 import (
+	"log"
+
 	imgui "github.com/FooSoft/imgui-go"
 	"github.com/FooSoft/lazarus/math"
 	"github.com/go-gl/gl/v2.1/gl"
@@ -18,7 +20,9 @@ type Context struct {
 func New(displaySize, bufferSize math.Vec2i) (*Context, error) {
 	singleton.refCount++
 	if singleton.refCount == 1 {
+		log.Println("imgui global create")
 		singleton.context = imgui.CreateContext(nil)
+
 		keys := map[int]int{
 			imgui.KeyTab:        sdl.SCANCODE_TAB,
 			imgui.KeyLeftArrow:  sdl.SCANCODE_LEFT,
@@ -50,6 +54,7 @@ func New(displaySize, bufferSize math.Vec2i) (*Context, error) {
 		}
 	}
 
+	log.Println("imgui context create")
 	c := &Context{displaySize: displaySize, bufferSize: bufferSize}
 
 	// Build texture atlas
@@ -66,7 +71,17 @@ func New(displaySize, bufferSize math.Vec2i) (*Context, error) {
 	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR)
 	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
 	gl.PixelStorei(gl.UNPACK_ROW_LENGTH, 0)
-	gl.TexImage2D(gl.TEXTURE_2D, 0, gl.RGBA, int32(image.Width), int32(image.Height), 0, gl.RGBA, gl.UNSIGNED_BYTE, image.Pixels)
+	gl.TexImage2D(
+		gl.TEXTURE_2D,
+		0,
+		gl.RGBA,
+		int32(image.Width),
+		int32(image.Height),
+		0,
+		gl.RGBA,
+		gl.UNSIGNED_BYTE,
+		image.Pixels,
+	)
 
 	// Restore state
 	gl.BindTexture(gl.TEXTURE_2D, uint32(lastTexture))
@@ -90,12 +105,14 @@ func (c *Context) Destroy() error {
 		return nil
 	}
 
+	log.Println("imgui context destroy")
 	gl.DeleteTextures(1, &c.fontTexture)
 	imgui.CurrentIO().Fonts().SetTextureID(0)
 	c.fontTexture = 0
 
 	singleton.refCount--
 	if singleton.refCount == 0 {
+		log.Println("imgui global destroy")
 		singleton.context.Destroy()
 		singleton.context = nil
 	}

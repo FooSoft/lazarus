@@ -1,6 +1,8 @@
 package platform
 
 import (
+	"log"
+
 	"github.com/FooSoft/lazarus/math"
 	"github.com/FooSoft/lazarus/platform/imgui"
 	"github.com/go-gl/gl/v2.1/gl"
@@ -15,10 +17,7 @@ type Window struct {
 }
 
 func newWindow(title string, size math.Vec2i, scene Scene) (*Window, error) {
-	sdl.GLSetAttribute(sdl.GL_CONTEXT_MAJOR_VERSION, 2)
-	sdl.GLSetAttribute(sdl.GL_CONTEXT_MINOR_VERSION, 1)
-	sdl.GLSetAttribute(sdl.GL_DOUBLEBUFFER, 1)
-
+	log.Println("window create")
 	sdlWindow, err := sdl.CreateWindow(
 		title,
 		sdl.WINDOWPOS_CENTERED,
@@ -63,7 +62,10 @@ func (w *Window) SetScene(scene Scene) error {
 		return nil
 	}
 
+	log.Printf("scene transition \"%v\" => \"%v\"\n", sceneName(w.scene), sceneName(scene))
+
 	if sceneDestroyer, ok := w.scene.(SceneDestroyer); ok {
+		log.Printf("scene notify destroy \"%s\"\n", sceneName(w.scene))
 		if err := sceneDestroyer.Destroy(w); err != nil {
 			return err
 		}
@@ -72,6 +74,7 @@ func (w *Window) SetScene(scene Scene) error {
 	w.scene = scene
 
 	if sceneCreator, ok := scene.(SceneCreator); ok {
+		log.Printf("scene notify create \"%s\"\n", sceneName(w.scene))
 		if err := sceneCreator.Create(w); err != nil {
 			return err
 		}
@@ -104,7 +107,9 @@ func (w *Window) Destroy() error {
 	}
 	w.sdlWindow = nil
 
+	log.Println("window destroy")
 	removeWindow(w)
+
 	return nil
 }
 
