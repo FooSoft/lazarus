@@ -7,7 +7,7 @@ import (
 	"github.com/FooSoft/lazarus/math"
 )
 
-type Palette struct {
+type DatPalette struct {
 	Colors [256]math.Color3b
 }
 
@@ -17,13 +17,13 @@ type color struct {
 	R byte
 }
 
-func NewFromReader(reader io.Reader) (*Palette, error) {
+func NewFromReader(reader io.Reader) (*DatPalette, error) {
 	var colors [256]color
 	if err := binary.Read(reader, binary.LittleEndian, &colors); err != nil {
 		return nil, err
 	}
 
-	palette := new(Palette)
+	palette := new(DatPalette)
 	for i, color := range colors {
 		palette.Colors[i] = math.Color3b{R: color.R, G: color.G, B: color.B}
 	}
@@ -31,8 +31,8 @@ func NewFromReader(reader io.Reader) (*Palette, error) {
 	return palette, nil
 }
 
-func NewFromGrayscale() *Palette {
-	palette := new(Palette)
+func NewFromGrayscale() *DatPalette {
+	palette := new(DatPalette)
 	for i := 0; i < 256; i++ {
 		value := uint8(i)
 		palette.Colors[i] = math.Color3b{R: value, G: value, B: value}

@@ -14,7 +14,7 @@ import (
 	"github.com/FooSoft/lazarus/platform"
 )
 
-func loadPalette(path string) (*dat.Palette, error) {
+func loadPalette(path string) (*dat.DatPalette, error) {
 	fp, err := os.Open(path)
 	if err != nil {
 		return nil, err
@@ -23,7 +23,7 @@ func loadPalette(path string) (*dat.Palette, error) {
 	return dat.NewFromReader(fp)
 }
 
-func loadSprite(path string) (*dc6.Sprite, error) {
+func loadAnimation(path string) (*dc6.Dc6Animation, error) {
 	fp, err := os.Open(path)
 	if err != nil {
 		return nil, err
@@ -33,9 +33,9 @@ func loadSprite(path string) (*dc6.Sprite, error) {
 }
 
 type scene struct {
-	sprite  *dc6.Sprite
-	palette *dat.Palette
-	texture graphics.Texture
+	animation *dc6.Dc6Animation
+	palette   *dat.DatPalette
+	texture   graphics.Texture
 
 	directionIndex int
 	frameIndex     int
@@ -65,8 +65,8 @@ func (s *scene) Advance(window *platform.Window) error {
 
 	imgui.DialogBegin("DC6 Viewer")
 	imgui.Image(s.texture)
-	direction := s.sprite.Directions[directionIndex]
-	if imgui.SliderInt("Direction", &directionIndex, 0, len(s.sprite.Directions)-1) {
+	direction := s.animation.Directions[directionIndex]
+	if imgui.SliderInt("Direction", &directionIndex, 0, len(s.animation.Directions)-1) {
 		frameIndex = 0
 	}
 	frame := direction.Frames[frameIndex]
@@ -88,7 +88,7 @@ func (s *scene) Advance(window *platform.Window) error {
 }
 
 func (s *scene) updateTexture(window *platform.Window) error {
-	frame := s.sprite.Directions[s.directionIndex].Frames[s.frameIndex]
+	frame := s.animation.Directions[s.directionIndex].Frames[s.frameIndex]
 	colors := make([]math.Color3b, frame.Size.X*frame.Size.Y)
 	for y := 0; y < frame.Size.Y; y++ {
 		for x := 0; x < frame.Size.X; x++ {
@@ -129,13 +129,13 @@ func main() {
 		os.Exit(2)
 	}
 
-	sprite, err := loadSprite(flag.Arg(0))
+	animation, err := loadAnimation(flag.Arg(0))
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 
-	var palette *dat.Palette
+	var palette *dat.DatPalette
 	if len(*palettePath) > 0 {
 		palette, err = loadPalette(*palettePath)
 		if err != nil {
@@ -146,7 +146,7 @@ func main() {
 		palette = dat.NewFromGrayscale()
 	}
 
-	scene := &scene{sprite: sprite, palette: palette}
+	scene := &scene{animation: animation, palette: palette}
 	window, err := platform.NewWindow("Viewer", math.Vec2i{X: 1024, Y: 768}, scene)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)

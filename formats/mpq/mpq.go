@@ -1,15 +1,5 @@
 package mpq
 
-// #ifdef _MPQ_WINDOWS
-// 		#include <windows.h>
-// 		#include <stdlib.h>
-// #endif
-// #ifdef _MPQ_LINUX
-//		#include <stdlib.h>
-//		#define WINAPI
-// 		DWORD GetLastError();
-// #endif
-//
 // #define DWORD unsigned int
 // #define LPDWORD unsigned int *
 // #define LPOVERLAPPED void *
@@ -18,13 +8,21 @@ package mpq
 // #define bool unsigned char
 // #define LONG int
 //
+// #include <stdlib.h>
+// #ifdef _MPQ_WINDOWS
+// 		#include <windows.h>
+// #endif
+// #ifdef _MPQ_LINUX
+//		#define WINAPI
+// 		DWORD GetLastError();
+// #endif
+//
 // bool  WINAPI SFileOpenArchive(const TCHAR * szMpqName, DWORD dwPriority, DWORD dwFlags, HANDLE * phMpq);
 // bool  WINAPI SFileCloseArchive(HANDLE hMpq);
 // bool  WINAPI SFileOpenFileEx(HANDLE hMpq, const char * szFileName, DWORD dwSearchScope, HANDLE * phFile);
 // DWORD WINAPI SFileSetFilePointer(HANDLE hFile, LONG lFilePos, LONG * plFilePosHigh, DWORD dwMoveMethod);
 // bool  WINAPI SFileReadFile(HANDLE hFile, void * lpBuffer, DWORD dwToRead, LPDWORD pdwRead, LPOVERLAPPED lpOverlapped);
 // bool  WINAPI SFileCloseFile(HANDLE hFile);
-//
 import "C"
 import (
 	"bytes"
@@ -42,13 +40,13 @@ type File interface {
 	Close() error
 }
 
-type Archive interface {
+type MpqArchive interface {
 	OpenFile(path string) (File, error)
 	GetPaths() []string
 	Close() error
 }
 
-func NewFromFile(path string) (Archive, error) {
+func NewFromFile(path string) (MpqArchive, error) {
 	cs := C.CString(path)
 	defer C.free(unsafe.Pointer(cs))
 
