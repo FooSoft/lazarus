@@ -12,7 +12,7 @@ import (
 type Window struct {
 	sdlWindow    *sdl.Window
 	sdlGlContext sdl.GLContext
-	imguiContext *imgui_backend.Context
+	imguiContext *imgui.Context
 	scene        Scene
 }
 
@@ -43,7 +43,7 @@ func newWindow(title string, size math.Vec2i, scene Scene) (*Window, error) {
 
 	w.makeCurrent()
 
-	w.imguiContext, err = imgui_backend.New(w.DisplaySize(), w.BufferSize())
+	w.imguiContext, err = imgui.New(w.DisplaySize(), w.BufferSize())
 	if err != nil {
 		w.Destroy()
 		return nil, err
@@ -114,10 +114,12 @@ func (w *Window) Destroy() error {
 }
 
 func (w *Window) CreateTextureRgba(colors []math.Color4b, size math.Vec2i) (*Texture, error) {
+	w.makeCurrent()
 	return newTextureFromRgba(colors, size)
 }
 
 func (w *Window) CreateTextureRgb(colors []math.Color3b, size math.Vec2i) (*Texture, error) {
+	w.makeCurrent()
 	return newTextureFromRgb(colors, size)
 }
 
@@ -147,6 +149,10 @@ func (w *Window) DisplaySize() math.Vec2i {
 func (w *Window) BufferSize() math.Vec2i {
 	width, height := w.sdlWindow.GLGetDrawableSize()
 	return math.Vec2i{X: int(width), Y: int(height)}
+}
+
+func (w *Window) Imgui() *imgui.Context {
+	return w.imguiContext
 }
 
 func (w *Window) advance() (bool, error) {

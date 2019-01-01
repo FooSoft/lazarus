@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 	"time"
 
-	imgui "github.com/FooSoft/imgui-go"
 	"github.com/FooSoft/lazarus/formats/dat"
 	"github.com/FooSoft/lazarus/formats/dc6"
 	"github.com/FooSoft/lazarus/math"
@@ -37,8 +36,8 @@ type scene struct {
 	palette *dat.Palette
 	texture *platform.Texture
 
-	directionIndex int32
-	frameIndex     int32
+	directionIndex int
+	frameIndex     int
 }
 
 func (s *scene) Name() string {
@@ -61,21 +60,22 @@ func (s *scene) Advance(window *platform.Window) error {
 		}
 	}
 
-	imgui.Begin("DC6 Viewer")
-	size := s.texture.Size()
-	imgui.Image(imgui.TextureID(s.texture.Handle()), imgui.Vec2{X: float32(size.X), Y: float32(size.Y)})
+	imgui := window.Imgui()
+
+	imgui.DialogBegin("DC6 Viewer")
+	imgui.Image(s.texture.Handle(), s.texture.Size())
 	direction := s.sprite.Directions[directionIndex]
-	if imgui.SliderInt("Direction", &directionIndex, 0, int32(len(s.sprite.Directions))-1) {
+	if imgui.SliderInt("Direction", &directionIndex, 0, len(s.sprite.Directions)-1) {
 		frameIndex = 0
 	}
 	frame := direction.Frames[frameIndex]
-	imgui.SliderInt("Frame", &frameIndex, 0, int32(len(direction.Frames))-1)
+	imgui.SliderInt("Frame", &frameIndex, 0, len(direction.Frames)-1)
 	imgui.Text(fmt.Sprintf("Size: %+v", frame.Size))
 	imgui.Text(fmt.Sprintf("Offset: %+v", frame.Offset))
-
 	if imgui.Button("Exit") {
 		window.SetScene(nil)
 	}
+	imgui.DialogEnd()
 
 	if directionIndex != s.directionIndex || frameIndex != s.frameIndex {
 		s.directionIndex = directionIndex
@@ -83,7 +83,6 @@ func (s *scene) Advance(window *platform.Window) error {
 		s.updateTexture(window)
 	}
 
-	imgui.End()
 	return nil
 }
 

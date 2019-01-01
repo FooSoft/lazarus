@@ -3,6 +3,7 @@ package platform
 import (
 	"unsafe"
 
+	"github.com/FooSoft/lazarus/graphics"
 	"github.com/FooSoft/lazarus/math"
 	"github.com/go-gl/gl/v2.1/gl"
 )
@@ -45,8 +46,8 @@ func newTextureFromRgb(colors []math.Color3b, size math.Vec2i) (*Texture, error)
 	return &Texture{size, glTexture}, nil
 }
 
-func (t *Texture) Handle() Handle {
-	return Handle(t.glTexture)
+func (t *Texture) Handle() graphics.Handle {
+	return graphics.Handle(t.glTexture)
 }
 
 func (t *Texture) Size() math.Vec2i {

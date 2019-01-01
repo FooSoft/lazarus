@@ -1,4 +1,4 @@
-package imgui_backend
+package imgui
 
 import (
 	"log"

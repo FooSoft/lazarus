@@ -14,8 +14,6 @@ var singleton struct {
 	windows   []*Window
 }
 
-type Handle uintptr
-
 func Advance() (bool, error) {
 	if err := advanceWindows(); err != nil {
 		return false, err
