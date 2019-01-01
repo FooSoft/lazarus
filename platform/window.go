@@ -3,6 +3,7 @@ package platform
 import (
 	"log"
 
+	"github.com/FooSoft/lazarus/graphics"
 	"github.com/FooSoft/lazarus/math"
 	"github.com/FooSoft/lazarus/platform/imgui"
 	"github.com/go-gl/gl/v2.1/gl"
@@ -113,21 +114,21 @@ func (w *Window) Destroy() error {
 	return nil
 }
 
-func (w *Window) CreateTextureRgba(colors []math.Color4b, size math.Vec2i) (*Texture, error) {
+func (w *Window) CreateTextureRgba(colors []math.Color4b, size math.Vec2i) (graphics.Texture, error) {
 	w.makeCurrent()
 	return newTextureFromRgba(colors, size)
 }
 
-func (w *Window) CreateTextureRgb(colors []math.Color3b, size math.Vec2i) (*Texture, error) {
+func (w *Window) CreateTextureRgb(colors []math.Color3b, size math.Vec2i) (graphics.Texture, error) {
 	w.makeCurrent()
 	return newTextureFromRgb(colors, size)
 }
 
-func (w *Window) RenderTexture(texture *Texture, position math.Vec2i) {
+func (w *Window) RenderTexture(texture graphics.Texture, position math.Vec2i) {
 	size := texture.Size()
 
 	gl.Enable(gl.TEXTURE_2D)
-	gl.BindTexture(gl.TEXTURE_2D, uint32(texture.Handle()))
+	gl.BindTexture(gl.TEXTURE_2D, uint32(texture.Id()))
 
 	gl.Begin(gl.QUADS)
 	gl.TexCoord2f(0, 0)

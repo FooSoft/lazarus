@@ -18,8 +18,12 @@ func (*Context) Button(label string) bool {
 	return imgui.Button(label)
 }
 
-func (*Context) Image(texture graphics.Handle, size math.Vec2i) {
-	imgui.Image(imgui.TextureID(texture), imgui.Vec2{X: float32(size.X), Y: float32(size.Y)})
+func (c *Context) Image(texture graphics.Texture) {
+	c.ImageSized(texture, texture.Size())
+}
+
+func (*Context) ImageSized(texture graphics.Texture, size math.Vec2i) {
+	imgui.Image(imgui.TextureID(texture.Id()), imgui.Vec2{X: float32(size.X), Y: float32(size.Y)})
 }
 
 func (*Context) SliderInt(label string, value *int, min, max int) bool {

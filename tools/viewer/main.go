@@ -9,6 +9,7 @@ import (
 
 	"github.com/FooSoft/lazarus/formats/dat"
 	"github.com/FooSoft/lazarus/formats/dc6"
+	"github.com/FooSoft/lazarus/graphics"
 	"github.com/FooSoft/lazarus/math"
 	"github.com/FooSoft/lazarus/platform"
 )
@@ -34,7 +35,7 @@ func loadSprite(path string) (*dc6.Sprite, error) {
 type scene struct {
 	sprite  *dc6.Sprite
 	palette *dat.Palette
-	texture *platform.Texture
+	texture graphics.Texture
 
 	directionIndex int
 	frameIndex     int
@@ -63,7 +64,7 @@ func (s *scene) Advance(window *platform.Window) error {
 	imgui := window.Imgui()
 
 	imgui.DialogBegin("DC6 Viewer")
-	imgui.Image(s.texture.Handle(), s.texture.Size())
+	imgui.Image(s.texture)
 	direction := s.sprite.Directions[directionIndex]
 	if imgui.SliderInt("Direction", &directionIndex, 0, len(s.sprite.Directions)-1) {
 		frameIndex = 0
