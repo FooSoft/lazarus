@@ -4,51 +4,33 @@ import (
 	"unsafe"
 
 	"github.com/FooSoft/imgui-go"
+	"github.com/FooSoft/lazarus/math"
 	"github.com/go-gl/gl/v2.1/gl"
 	"github.com/veandco/go-sdl2/sdl"
 )
 
-var singleton struct {
-	context  *imgui.Context
-	refCount int
-}
+func (c *Context) BeginFrame() {
+	SetDisplaySize(c.displaySize)
 
-func (c *Context) BeginFrame() error {
-	// Setup display size (every frame to accommodate for window resizing)
-	io := imgui.CurrentIO()
-	io.SetDisplaySize(imgui.Vec2{
-		X: float32(c.displaySize.X),
-		Y: float32(c.displaySize.Y),
-	})
-
-	// Setup time step (we don't use SDL_GetTicks() because it is using millisecond resolution)
 	frequency := sdl.GetPerformanceFrequency()
 	currentTime := sdl.GetPerformanceCounter()
 	if c.lastTime > 0 {
-		io.SetDeltaTime(float32(currentTime-c.lastTime) / float32(frequency))
+		SetDeltaTime(float32(currentTime-c.lastTime) / float32(frequency))
 	} else {
-		io.SetDeltaTime(1.0 / 60.0)
+		SetDeltaTime(1.0 / 60.0)
 	}
 	c.lastTime = currentTime
 
-	// If a mouse press event came, always pass it as "mouse held this frame", so we don't miss click-release events that are shorter than 1 frame.
 	x, y, state := sdl.GetMouseState()
+	SetMousePosition(math.Vec2i{X: int(x), Y: int(y)})
 	for i, button := range []uint32{sdl.BUTTON_LEFT, sdl.BUTTON_RIGHT, sdl.BUTTON_MIDDLE} {
-		io.SetMouseButtonDown(i, c.buttonsDown[i] || (state&sdl.Button(button)) != 0)
+		SetMouseButtonDown(i, c.buttonsDown[i] || (state&sdl.Button(button)) != 0)
 		c.buttonsDown[i] = false
 	}
 
-	io.SetMousePosition(imgui.Vec2{X: float32(x), Y: float32(y)})
-
-	imgui.NewFrame()
-	return nil
+	NewFrame()
 }
 
-// You can read the io.WantCaptureMouse, io.WantCaptureKeyboard flags to tell if dear imgui wants to use your inputs.
-// - When io.WantCaptureMouse is true, do not dispatch mouse input data to your main application.
-// - When io.WantCaptureKeyboard is true, do not dispatch keyboard input data to your main application.
-// Generally you may always pass all inputs to dear imgui, and hide them from your application based on those two flags.
-// If you have multiple SDL events and some of them are not meant to be used by dear imgui, you may need to filter events based on their windowID field.
 func (c *Context) ProcessEvent(event sdl.Event) (bool, error) {
 	switch io := imgui.CurrentIO(); event.GetType() {
 	case sdl.MOUSEWHEEL:
@@ -85,18 +67,14 @@ func (c *Context) ProcessEvent(event sdl.Event) (bool, error) {
 		return true, nil
 	case sdl.KEYDOWN:
 		keyEvent := event.(*sdl.KeyboardEvent)
-		io.KeyPress(int(keyEvent.Keysym.Scancode))
-		modState := int(sdl.GetModState())
-		io.KeyShift(modState&sdl.KMOD_LSHIFT, modState&sdl.KMOD_RSHIFT)
-		io.KeyCtrl(modState&sdl.KMOD_LCTRL, modState&sdl.KMOD_RCTRL)
-		io.KeyAlt(modState&sdl.KMOD_LALT, modState&sdl.KMOD_RALT)
+		SetKeyDown(int(keyEvent.Keysym.Scancode), true)
+		modState := sdl.GetModState()
+		SetKeyState(modState&sdl.KMOD_CTRL != 0, modState&sdl.KMOD_SHIFT != 0, modState&sdl.KMOD_ALT != 0)
 	case sdl.KEYUP:
 		keyEvent := event.(*sdl.KeyboardEvent)
-		io.KeyRelease(int(keyEvent.Keysym.Scancode))
-		modState := int(sdl.GetModState())
-		io.KeyShift(modState&sdl.KMOD_LSHIFT, modState&sdl.KMOD_RSHIFT)
-		io.KeyCtrl(modState&sdl.KMOD_LCTRL, modState&sdl.KMOD_RCTRL)
-		io.KeyAlt(modState&sdl.KMOD_LALT, modState&sdl.KMOD_RALT)
+		SetKeyDown(int(keyEvent.Keysym.Scancode), false)
+		modState := sdl.GetModState()
+		SetKeyState(modState&sdl.KMOD_CTRL != 0, modState&sdl.KMOD_SHIFT != 0, modState&sdl.KMOD_ALT != 0)
 		return true, nil
 	}
 

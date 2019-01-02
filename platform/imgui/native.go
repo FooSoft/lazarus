@@ -5,7 +5,9 @@ package imgui
 // #cgo linux LDFLAGS: -L./cimgui -l:cimgui.a -lstdc++ -lm
 import "C"
 import (
-	"github.com/FooSoft/lazarus/graphics"
+	"unsafe"
+
+	"github.com/FooSoft/lazarus/math"
 	"github.com/veandco/go-sdl2/sdl"
 )
 
@@ -53,19 +55,14 @@ func (c *imGuiContext) Destroy() {
 	C.igDestroyContext(c)
 }
 
-func FontImage() (*C.uint8_t, int, int) {
+func FontImage() (unsafe.Pointer, int, int) {
 	io := IO()
 
-	var pixels *C.uint8_t
+	var pixels *C.uchar
 	var width, height C.int
 	C.ImFontAtlas_GetTexDataAsRGBA32(io.Fonts, &pixels, &width, &height, nil)
 
-	return pixels, int(width), int(height)
-}
-
-func SetFontTexture(texture graphics.Texture) {
-	io := IO()
-	io.Fonts.TexID = imTextureId(texture.Id())
+	return unsafe.Pointer(pixels), int(width), int(height)
 }
 
 func NewFrame() {
@@ -79,4 +76,43 @@ func Render() *imDrawData {
 
 func IO() *imGuiIO {
 	return C.igGetIO()
+}
+
+func SetDeltaTime(time float32) {
+	io := IO()
+	io.DeltaTime = C.float(time)
+}
+
+func SetDisplaySize(size math.Vec2i) {
+	io := IO()
+	io.DisplaySize.x = C.float(size.X)
+	io.DisplaySize.y = C.float(size.Y)
+}
+
+func SetMousePosition(position math.Vec2i) {
+	io := IO()
+	io.MousePos.x = C.float(position.X)
+	io.MousePos.y = C.float(position.Y)
+}
+
+func SetMouseButtonDown(index int, down bool) {
+	io := IO()
+	io.MouseDown[index] = C.bool(down)
+}
+
+func SetKeyState(ctrl, shift, alt bool) {
+	io := IO()
+	io.KeyCtrl = C.bool(ctrl)
+	io.KeyShift = C.bool(shift)
+	io.KeyAlt = C.bool(alt)
+}
+
+func SetKeyDown(key int, down bool) {
+	io := IO()
+	io.KeysDown[key] = C.bool(down)
+}
+
+func SetFontTexture(textureId uintptr) {
+	io := IO()
+	io.Fonts.TexID = imTextureId(textureId)
 }
