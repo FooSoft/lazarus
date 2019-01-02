@@ -32,20 +32,21 @@ func (c *Context) BeginFrame() {
 }
 
 func (c *Context) ProcessEvent(event sdl.Event) (bool, error) {
-	switch io := imgui.CurrentIO(); event.GetType() {
+	switch event.GetType() {
 	case sdl.MOUSEWHEEL:
 		wheelEvent := event.(*sdl.MouseWheelEvent)
-		var deltaX, deltaY float32
+		var delta math.Vec2i
 		if wheelEvent.X > 0 {
-			deltaX++
+			delta.X++
 		} else if wheelEvent.X < 0 {
-			deltaX--
+			delta.X--
 		}
 		if wheelEvent.Y > 0 {
-			deltaY++
+			delta.Y++
 		} else if wheelEvent.Y < 0 {
-			deltaY--
+			delta.Y--
 		}
+		SetMouseDelta(delta)
 		return true, nil
 	case sdl.MOUSEBUTTONDOWN:
 		buttonEvent := event.(*sdl.MouseButtonEvent)
@@ -63,18 +64,22 @@ func (c *Context) ProcessEvent(event sdl.Event) (bool, error) {
 		return true, nil
 	case sdl.TEXTINPUT:
 		inputEvent := event.(*sdl.TextInputEvent)
-		io.AddInputCharacters(string(inputEvent.Text[:]))
+		AddInputCharacters(string(inputEvent.Text[:]))
 		return true, nil
 	case sdl.KEYDOWN:
 		keyEvent := event.(*sdl.KeyboardEvent)
 		SetKeyDown(int(keyEvent.Keysym.Scancode), true)
 		modState := sdl.GetModState()
-		SetKeyState(modState&sdl.KMOD_CTRL != 0, modState&sdl.KMOD_SHIFT != 0, modState&sdl.KMOD_ALT != 0)
+		SetAltDown(modState&sdl.KMOD_ALT != 0)
+		SetCtrlDown(modState&sdl.KMOD_CTRL != 0)
+		SetShiftDown(modState&sdl.KMOD_SHIFT != 0)
 	case sdl.KEYUP:
 		keyEvent := event.(*sdl.KeyboardEvent)
 		SetKeyDown(int(keyEvent.Keysym.Scancode), false)
 		modState := sdl.GetModState()
-		SetKeyState(modState&sdl.KMOD_CTRL != 0, modState&sdl.KMOD_SHIFT != 0, modState&sdl.KMOD_ALT != 0)
+		SetAltDown(modState&sdl.KMOD_ALT != 0)
+		SetCtrlDown(modState&sdl.KMOD_CTRL != 0)
+		SetShiftDown(modState&sdl.KMOD_SHIFT != 0)
 		return true, nil
 	}
 

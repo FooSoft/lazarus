@@ -1,5 +1,6 @@
 package imgui
 
+// #include <stdlib.h>
 // #define CIMGUI_DEFINE_ENUMS_AND_STRUCTS
 // #include "cimgui/cimgui.h"
 // #cgo linux LDFLAGS: -L./cimgui -l:cimgui.a -lstdc++ -lm
@@ -100,11 +101,19 @@ func SetMouseButtonDown(index int, down bool) {
 	io.MouseDown[index] = C.bool(down)
 }
 
-func SetKeyState(ctrl, shift, alt bool) {
+func SetAltDown(down bool) {
 	io := IO()
-	io.KeyCtrl = C.bool(ctrl)
-	io.KeyShift = C.bool(shift)
-	io.KeyAlt = C.bool(alt)
+	io.KeyAlt = C.bool(down)
+}
+
+func SetShiftDown(down bool) {
+	io := IO()
+	io.KeyShift = C.bool(down)
+}
+
+func SetCtrlDown(down bool) {
+	io := IO()
+	io.KeyCtrl = C.bool(down)
 }
 
 func SetKeyDown(key int, down bool) {
@@ -112,7 +121,20 @@ func SetKeyDown(key int, down bool) {
 	io.KeysDown[key] = C.bool(down)
 }
 
+func SetMouseDelta(delta math.Vec2i) {
+	io := IO()
+	io.MouseDelta.x = C.float(delta.X)
+	io.MouseDelta.y = C.float(delta.Y)
+}
+
 func SetFontTexture(textureId uintptr) {
 	io := IO()
 	io.Fonts.TexID = imTextureId(textureId)
+}
+
+func AddInputCharacters(characters string) {
+	io := IO()
+	cs := C.CString(characters)
+	defer C.free(unsafe.Pointer(cs))
+	C.ImGuiIO_AddInputCharactersUTF8(io, cs)
 }
