@@ -46,7 +46,11 @@ func (s *scene) Name() string {
 }
 
 func (s *scene) Destroy(window *platform.Window) error {
-	return s.texture.Destroy()
+	if s.texture != nil {
+		return s.texture.Destroy()
+	}
+
+	return nil
 }
 
 func (s *scene) Advance(window *platform.Window) error {

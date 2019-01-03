@@ -15,8 +15,15 @@ import (
 type imGuiContext = C.ImGuiContext
 type imDrawData = C.ImDrawData
 type imGuiIO = C.ImGuiIO
-type imTextureId = C.ImTextureID
-type imVec2 = C.ImVec2
+
+const (
+	pointerSize     = unsafe.Sizeof(C.uintptr_t(0))
+	drawCommandSize = unsafe.Sizeof(C.ImDrawCmd{})
+	vertexSize      = unsafe.Sizeof(C.ImDrawVert{})
+	vertexOffsetPos = unsafe.Offsetof(C.ImDrawVert{}.pos)
+	vertexOffsetUv  = unsafe.Offsetof(C.ImDrawVert{}.uv)
+	vertexOffsetCol = unsafe.Offsetof(C.ImDrawVert{}.col)
+)
 
 func CreateContext() *imGuiContext {
 	c := C.igCreateContext(nil)
@@ -77,18 +84,12 @@ func Render() *imDrawData {
 }
 
 func (d *imDrawData) ScaleClipRects(scale math.Vec2f) {
-	C.ImDrawData_ScaleClipRects(d, imVec2{x: C.float(scale.X), y: C.float(scale.Y)})
+	C.ImDrawData_ScaleClipRects(d, C.ImVec2{x: C.float(scale.X), y: C.float(scale.Y)})
 }
 
 func (d *imDrawData) Draw(bufferSize math.Vec2i) {
-	vert := C.ImDrawVert{}
-	vertexSize := unsafe.Sizeof(vert)
-	vertexOffsetPos := unsafe.Offsetof(vert.pos)
-	vertexOffsetUv := unsafe.Offsetof(vert.uv)
-	vertexOffsetCol := unsafe.Offsetof(vert.col)
-
 	for i := C.int(0); i < d.CmdListsCount; i++ {
-		commandList := C.getDrawList(d.CmdLists, i)
+		commandList := *(**C.ImDrawList)(unsafe.Pointer(uintptr(unsafe.Pointer(d.CmdLists)) + pointerSize*uintptr(i)))
 		vertexBuffer := unsafe.Pointer(commandList.VtxBuffer.Data)
 		indexBuffer := unsafe.Pointer(commandList.IdxBuffer.Data)
 		indexBufferOffset := uintptr(indexBuffer)
@@ -98,43 +99,13 @@ func (d *imDrawData) Draw(bufferSize math.Vec2i) {
 		gl.ColorPointer(4, gl.UNSIGNED_BYTE, int32(vertexSize), unsafe.Pointer(uintptr(vertexBuffer)+uintptr(vertexOffsetCol)))
 
 		for j := C.int(0); j < commandList.CmdBuffer.Size; j++ {
-			command := C.getDrawCmd(commandList.CmdBuffer.Data, j)
-			gl.Scissor(
-				int32(command.ClipRect.x),
-				int32(bufferSize.Y)-int32(command.ClipRect.w),
-				int32(command.ClipRect.z-command.ClipRect.x),
-				int32(command.ClipRect.w-command.ClipRect.y),
-			)
-
+			command := (*C.ImDrawCmd)(unsafe.Pointer(uintptr(unsafe.Pointer(commandList.CmdBuffer.Data)) + drawCommandSize*uintptr(j)))
+			gl.Scissor(int32(command.ClipRect.x), int32(bufferSize.Y)-int32(command.ClipRect.w), int32(command.ClipRect.z-command.ClipRect.x), int32(command.ClipRect.w-command.ClipRect.y))
 			gl.BindTexture(gl.TEXTURE_2D, uint32(uintptr(command.TextureId)))
 			gl.DrawElements(gl.TRIANGLES, int32(command.ElemCount), gl.UNSIGNED_SHORT, unsafe.Pointer(indexBufferOffset))
-
 			indexBufferOffset += uintptr(command.ElemCount * 2)
 		}
 	}
-
-	// for _, commandList := range drawData.CommandLists() {
-	// 	vertexBuffer, _ := commandList.VertexBuffer()
-	// 	indexBuffer, _ := commandList.IndexBuffer()
-	// 	indexBufferOffset := uintptr(indexBuffer)
-
-	// 	gl.VertexPointer(2, gl.FLOAT, int32(vertexSize), unsafe.Pointer(uintptr(vertexBuffer)+uintptr(vertexOffsetPos)))
-	// 	gl.TexCoordPointer(2, gl.FLOAT, int32(vertexSize), unsafe.Pointer(uintptr(vertexBuffer)+uintptr(vertexOffsetUv)))
-	// 	gl.ColorPointer(4, gl.UNSIGNED_BYTE, int32(vertexSize), unsafe.Pointer(uintptr(vertexBuffer)+uintptr(vertexOffsetCol)))
-
-	// 	for _, command := range commandList.Commands() {
-	// 		if command.HasUserCallback() {
-	// 			command.CallUserCallback(commandList)
-	// 		} else {
-	// 			clipRect := command.ClipRect()
-	// 			gl.Scissor(int32(clipRect.X), int32(c.bufferSize.Y)-int32(clipRect.W), int32(clipRect.Z-clipRect.X), int32(clipRect.W-clipRect.Y))
-	// 			gl.BindTexture(gl.TEXTURE_2D, uint32(command.TextureID()))
-	// 			gl.DrawElements(gl.TRIANGLES, int32(command.ElementCount()), uint32(drawType), unsafe.Pointer(indexBufferOffset))
-	// 		}
-
-	// 		indexBufferOffset += uintptr(command.ElementCount() * indexSize)
-	// 	}
-	// }
 }
 
 func IO() *imGuiIO {
@@ -191,7 +162,7 @@ func SetMouseDelta(delta math.Vec2i) {
 
 func SetFontTexture(textureId uintptr) {
 	io := IO()
-	io.Fonts.TexID = imTextureId(textureId)
+	io.Fonts.TexID = C.ImTextureID(textureId)
 }
 
 func AddInputCharacters(characters string) {

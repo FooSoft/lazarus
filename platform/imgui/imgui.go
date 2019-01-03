@@ -31,7 +31,7 @@ func (c *Context) Image(texture graphics.Texture) {
 
 func (*Context) ImageSized(texture graphics.Texture, size math.Vec2i) {
 	C.igImage(
-		imTextureId(texture.Id()),
+		C.ImTextureID(texture.Id()),
 		C.ImVec2{x: C.float(size.X), y: C.float(size.Y)},
 		C.ImVec2{0, 0},
 		C.ImVec2{1, 1},
