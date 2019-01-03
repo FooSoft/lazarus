@@ -129,7 +129,7 @@ func (c *Context) EndFrame() error {
 		X: float32(c.bufferSize.X) / float32(c.displaySize.X),
 		Y: float32(c.bufferSize.Y) / float32(c.displaySize.Y),
 	})
-	drawData.Draw()
+	drawData.Draw(c.bufferSize)
 
 	// Restore modified state
 	gl.DisableClientState(gl.COLOR_ARRAY)

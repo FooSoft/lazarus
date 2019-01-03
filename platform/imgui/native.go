@@ -1,14 +1,14 @@
 package imgui
 
-// #include <stdlib.h>
-// #define CIMGUI_DEFINE_ENUMS_AND_STRUCTS
-// #include "cimgui/cimgui.h"
+// #cgo linux CFLAGS: -I./cimgui
 // #cgo linux LDFLAGS: -L./cimgui -l:cimgui.a -lstdc++ -lm
+// #include "native.h"
 import "C"
 import (
 	"unsafe"
 
 	"github.com/FooSoft/lazarus/math"
+	"github.com/go-gl/gl/v2.1/gl"
 	"github.com/veandco/go-sdl2/sdl"
 )
 
@@ -80,14 +80,43 @@ func (d *imDrawData) ScaleClipRects(scale math.Vec2f) {
 	C.ImDrawData_ScaleClipRects(d, imVec2{x: C.float(scale.X), y: C.float(scale.Y)})
 }
 
-func (d *imDrawData) Draw() {
-	// vertexSize, vertexOffsetPos, vertexOffsetUv, vertexOffsetCol := imgui.VertexBufferLayout()
-	// indexSize := imgui.IndexBufferLayout()
+func (d *imDrawData) Draw(bufferSize math.Vec2i) {
+	var indexSize C.int
+	C.getIndexBufferLayout(&indexSize)
 
-	// drawType := gl.UNSIGNED_SHORT
-	// if indexSize == 4 {
-	// 	drawType = gl.UNSIGNED_INT
-	// }
+	var vertexSize, vertexOffsetPos, vertexOffsetUv, vertexOffsetCol C.int
+	C.getVertexBufferLayout(&vertexSize, &vertexOffsetPos, &vertexOffsetUv, &vertexOffsetCol)
+
+	drawType := gl.UNSIGNED_SHORT
+	if indexSize == 4 {
+		drawType = gl.UNSIGNED_INT
+	}
+
+	for i := C.int(0); i < d.CmdListsCount; i++ {
+		commandList := C.getDrawList(d.CmdLists, i)
+		vertexBuffer := unsafe.Pointer(commandList.VtxBuffer.Data)
+		indexBuffer := unsafe.Pointer(commandList.IdxBuffer.Data)
+		indexBufferOffset := uintptr(indexBuffer)
+
+		gl.VertexPointer(2, gl.FLOAT, int32(vertexSize), unsafe.Pointer(uintptr(vertexBuffer)+uintptr(vertexOffsetPos)))
+		gl.TexCoordPointer(2, gl.FLOAT, int32(vertexSize), unsafe.Pointer(uintptr(vertexBuffer)+uintptr(vertexOffsetUv)))
+		gl.ColorPointer(4, gl.UNSIGNED_BYTE, int32(vertexSize), unsafe.Pointer(uintptr(vertexBuffer)+uintptr(vertexOffsetCol)))
+
+		for j := C.int(0); j < commandList.CmdBuffer.Size; j++ {
+			command := C.getDrawCmd(commandList.CmdBuffer.Data, j)
+			gl.Scissor(
+				int32(command.ClipRect.x),
+				int32(bufferSize.Y)-int32(command.ClipRect.w),
+				int32(command.ClipRect.z-command.ClipRect.x),
+				int32(command.ClipRect.w-command.ClipRect.y),
+			)
+
+			gl.BindTexture(gl.TEXTURE_2D, uint32(uintptr(command.TextureId)))
+			gl.DrawElements(gl.TRIANGLES, int32(command.ElemCount), uint32(drawType), unsafe.Pointer(indexBufferOffset))
+
+			indexBufferOffset += uintptr(C.int(command.ElemCount) * indexSize)
+		}
+	}
 
 	// for _, commandList := range drawData.CommandLists() {
 	// 	vertexBuffer, _ := commandList.VertexBuffer()
