@@ -81,16 +81,11 @@ func (d *imDrawData) ScaleClipRects(scale math.Vec2f) {
 }
 
 func (d *imDrawData) Draw(bufferSize math.Vec2i) {
-	var indexSize C.int
-	C.getIndexBufferLayout(&indexSize)
-
-	var vertexSize, vertexOffsetPos, vertexOffsetUv, vertexOffsetCol C.int
-	C.getVertexBufferLayout(&vertexSize, &vertexOffsetPos, &vertexOffsetUv, &vertexOffsetCol)
-
-	drawType := gl.UNSIGNED_SHORT
-	if indexSize == 4 {
-		drawType = gl.UNSIGNED_INT
-	}
+	vert := C.ImDrawVert{}
+	vertexSize := unsafe.Sizeof(vert)
+	vertexOffsetPos := unsafe.Offsetof(vert.pos)
+	vertexOffsetUv := unsafe.Offsetof(vert.uv)
+	vertexOffsetCol := unsafe.Offsetof(vert.col)
 
 	for i := C.int(0); i < d.CmdListsCount; i++ {
 		commandList := C.getDrawList(d.CmdLists, i)
@@ -112,9 +107,9 @@ func (d *imDrawData) Draw(bufferSize math.Vec2i) {
 			)
 
 			gl.BindTexture(gl.TEXTURE_2D, uint32(uintptr(command.TextureId)))
-			gl.DrawElements(gl.TRIANGLES, int32(command.ElemCount), uint32(drawType), unsafe.Pointer(indexBufferOffset))
+			gl.DrawElements(gl.TRIANGLES, int32(command.ElemCount), gl.UNSIGNED_SHORT, unsafe.Pointer(indexBufferOffset))
 
-			indexBufferOffset += uintptr(C.int(command.ElemCount) * indexSize)
+			indexBufferOffset += uintptr(command.ElemCount * 2)
 		}
 	}
 
