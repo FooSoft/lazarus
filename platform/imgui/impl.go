@@ -1,9 +1,6 @@
 package imgui
 
 import (
-	"unsafe"
-
-	"github.com/FooSoft/imgui-go"
 	"github.com/FooSoft/lazarus/math"
 	"github.com/go-gl/gl/v2.1/gl"
 	"github.com/veandco/go-sdl2/sdl"
@@ -89,13 +86,6 @@ func (c *Context) ProcessEvent(event sdl.Event) (bool, error) {
 // OpenGL2 Render function.
 // Note that this implementation is little overcomplicated because we are saving/setting up/restoring every OpenGL singleton explicitly, in order to be able to run within any OpenGL engine that doesn't do so.
 func (c *Context) EndFrame() error {
-	imgui.Render()
-	drawData := imgui.RenderedDrawData()
-	drawData.ScaleClipRects(imgui.Vec2{
-		X: float32(c.bufferSize.X) / float32(c.displaySize.X),
-		Y: float32(c.bufferSize.Y) / float32(c.displaySize.Y),
-	})
-
 	// We are using the OpenGL fixed pipeline to make the example code simpler to read!
 	// Setup render singleton: alpha-blending enabled, no face culling, no depth testing, scissor enabled, vertex/texcoord/color pointers, polygon fill.
 	var lastTexture int32
@@ -134,37 +124,12 @@ func (c *Context) EndFrame() error {
 	gl.PushMatrix()
 	gl.LoadIdentity()
 
-	vertexSize, vertexOffsetPos, vertexOffsetUv, vertexOffsetCol := imgui.VertexBufferLayout()
-	indexSize := imgui.IndexBufferLayout()
-
-	drawType := gl.UNSIGNED_SHORT
-	if indexSize == 4 {
-		drawType = gl.UNSIGNED_INT
-	}
-
-	// Render command lists
-	for _, commandList := range drawData.CommandLists() {
-		vertexBuffer, _ := commandList.VertexBuffer()
-		indexBuffer, _ := commandList.IndexBuffer()
-		indexBufferOffset := uintptr(indexBuffer)
-
-		gl.VertexPointer(2, gl.FLOAT, int32(vertexSize), unsafe.Pointer(uintptr(vertexBuffer)+uintptr(vertexOffsetPos)))
-		gl.TexCoordPointer(2, gl.FLOAT, int32(vertexSize), unsafe.Pointer(uintptr(vertexBuffer)+uintptr(vertexOffsetUv)))
-		gl.ColorPointer(4, gl.UNSIGNED_BYTE, int32(vertexSize), unsafe.Pointer(uintptr(vertexBuffer)+uintptr(vertexOffsetCol)))
-
-		for _, command := range commandList.Commands() {
-			if command.HasUserCallback() {
-				command.CallUserCallback(commandList)
-			} else {
-				clipRect := command.ClipRect()
-				gl.Scissor(int32(clipRect.X), int32(c.bufferSize.Y)-int32(clipRect.W), int32(clipRect.Z-clipRect.X), int32(clipRect.W-clipRect.Y))
-				gl.BindTexture(gl.TEXTURE_2D, uint32(command.TextureID()))
-				gl.DrawElements(gl.TRIANGLES, int32(command.ElementCount()), uint32(drawType), unsafe.Pointer(indexBufferOffset))
-			}
-
-			indexBufferOffset += uintptr(command.ElementCount() * indexSize)
-		}
-	}
+	drawData := Render()
+	drawData.ScaleClipRects(math.Vec2f{
+		X: float32(c.bufferSize.X) / float32(c.displaySize.X),
+		Y: float32(c.bufferSize.Y) / float32(c.displaySize.Y),
+	})
+	drawData.Draw()
 
 	// Restore modified state
 	gl.DisableClientState(gl.COLOR_ARRAY)

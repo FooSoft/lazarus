@@ -16,6 +16,7 @@ type imGuiContext = C.ImGuiContext
 type imDrawData = C.ImDrawData
 type imGuiIO = C.ImGuiIO
 type imTextureId = C.ImTextureID
+type imVec2 = C.ImVec2
 
 func CreateContext() *imGuiContext {
 	c := C.igCreateContext(nil)
@@ -73,6 +74,43 @@ func NewFrame() {
 func Render() *imDrawData {
 	C.igRender()
 	return C.igGetDrawData()
+}
+
+func (d *imDrawData) ScaleClipRects(scale math.Vec2f) {
+	C.ImDrawData_ScaleClipRects(d, imVec2{x: C.float(scale.X), y: C.float(scale.Y)})
+}
+
+func (d *imDrawData) Draw() {
+	// vertexSize, vertexOffsetPos, vertexOffsetUv, vertexOffsetCol := imgui.VertexBufferLayout()
+	// indexSize := imgui.IndexBufferLayout()
+
+	// drawType := gl.UNSIGNED_SHORT
+	// if indexSize == 4 {
+	// 	drawType = gl.UNSIGNED_INT
+	// }
+
+	// for _, commandList := range drawData.CommandLists() {
+	// 	vertexBuffer, _ := commandList.VertexBuffer()
+	// 	indexBuffer, _ := commandList.IndexBuffer()
+	// 	indexBufferOffset := uintptr(indexBuffer)
+
+	// 	gl.VertexPointer(2, gl.FLOAT, int32(vertexSize), unsafe.Pointer(uintptr(vertexBuffer)+uintptr(vertexOffsetPos)))
+	// 	gl.TexCoordPointer(2, gl.FLOAT, int32(vertexSize), unsafe.Pointer(uintptr(vertexBuffer)+uintptr(vertexOffsetUv)))
+	// 	gl.ColorPointer(4, gl.UNSIGNED_BYTE, int32(vertexSize), unsafe.Pointer(uintptr(vertexBuffer)+uintptr(vertexOffsetCol)))
+
+	// 	for _, command := range commandList.Commands() {
+	// 		if command.HasUserCallback() {
+	// 			command.CallUserCallback(commandList)
+	// 		} else {
+	// 			clipRect := command.ClipRect()
+	// 			gl.Scissor(int32(clipRect.X), int32(c.bufferSize.Y)-int32(clipRect.W), int32(clipRect.Z-clipRect.X), int32(clipRect.W-clipRect.Y))
+	// 			gl.BindTexture(gl.TEXTURE_2D, uint32(command.TextureID()))
+	// 			gl.DrawElements(gl.TRIANGLES, int32(command.ElementCount()), uint32(drawType), unsafe.Pointer(indexBufferOffset))
+	// 		}
+
+	// 		indexBufferOffset += uintptr(command.ElementCount() * indexSize)
+	// 	}
+	// }
 }
 
 func IO() *imGuiIO {
