@@ -5,15 +5,6 @@ import (
 	"github.com/FooSoft/lazarus/math"
 )
 
-func (*Context) DialogBegin(label string) bool {
-	// return imgui.Begin(label)
-	return false
-}
-
-func (*Context) DialogEnd() {
-	// imgui.End()
-}
-
 func (*Context) Button(label string) bool {
 	// return imgui.Button(label)
 	return false

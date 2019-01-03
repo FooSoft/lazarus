@@ -34,7 +34,6 @@ func New(displaySize, bufferSize math.Vec2i) (*Context, error) {
 
 	var lastTexture int32
 	gl.GetIntegerv(gl.TEXTURE_BINDING_2D, &lastTexture)
-	var fontTexture uint32
 	gl.GenTextures(1, &c.fontTexture)
 	gl.BindTexture(gl.TEXTURE_2D, c.fontTexture)
 	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR)
@@ -43,7 +42,7 @@ func New(displaySize, bufferSize math.Vec2i) (*Context, error) {
 	gl.TexImage2D(gl.TEXTURE_2D, 0, gl.RGBA, int32(width), int32(height), 0, gl.RGBA, gl.UNSIGNED_BYTE, pixels)
 	gl.BindTexture(gl.TEXTURE_2D, uint32(lastTexture))
 
-	SetFontTexture(uintptr(fontTexture))
+	SetFontTexture(uintptr(c.fontTexture))
 	return c, nil
 }
 

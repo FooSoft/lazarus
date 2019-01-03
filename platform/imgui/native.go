@@ -205,3 +205,13 @@ func AddInputCharacters(characters string) {
 	defer C.free(unsafe.Pointer(cs))
 	C.ImGuiIO_AddInputCharactersUTF8(io, cs)
 }
+
+func (*Context) DialogBegin(label string) bool {
+	cs := C.CString(label)
+	defer C.free(unsafe.Pointer(cs))
+	return bool(C.igBegin(cs, nil, 0))
+}
+
+func (*Context) DialogEnd() {
+	C.igEnd()
+}
