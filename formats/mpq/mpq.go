@@ -1,34 +1,20 @@
 package mpq
 
-// #define DWORD unsigned int
-// #define LPDWORD unsigned int *
-// #define LPOVERLAPPED void *
-// #define TCHAR char
-// #define HANDLE void *
-// #define bool unsigned char
-// #define LONG int
-//
-// #include <stdlib.h>
+// #cgo windows CFLAGS: -D_MPQ_WINDOWS
+// #cgo windows LDFLAGS: -Lstormlib -lstorm -lwininet -lz -lbz2 -lstdc++
+// #cgo linux CFLAGS: -D_MPQ_LINUX
+// #cgo linux LDFLAGS: -L./stormlib/ -lstorm -lz -lbz2 -lstdc++
 // #ifdef _MPQ_WINDOWS
-// 		#include <windows.h>
+// #include "native_windows.h"
 // #endif
 // #ifdef _MPQ_LINUX
-//		#define WINAPI
-// 		DWORD GetLastError();
+// #include "native_linux.h"
 // #endif
-//
-// bool  WINAPI SFileOpenArchive(const TCHAR * szMpqName, DWORD dwPriority, DWORD dwFlags, HANDLE * phMpq);
-// bool  WINAPI SFileCloseArchive(HANDLE hMpq);
-// bool  WINAPI SFileOpenFileEx(HANDLE hMpq, const char * szFileName, DWORD dwSearchScope, HANDLE * phFile);
-// DWORD WINAPI SFileSetFilePointer(HANDLE hFile, LONG lFilePos, LONG * plFilePosHigh, DWORD dwMoveMethod);
-// bool  WINAPI SFileReadFile(HANDLE hFile, void * lpBuffer, DWORD dwToRead, LPDWORD pdwRead, LPOVERLAPPED lpOverlapped);
-// bool  WINAPI SFileCloseFile(HANDLE hFile);
 import "C"
 import (
 	"bytes"
 	"fmt"
 	"io"
-	"math"
 	"os"
 	"strings"
 	"unsafe"
@@ -71,7 +57,7 @@ func (f *file) Read(data []byte) (int, error) {
 	var bytesRead int
 	if result := C.SFileReadFile(f.handle, unsafe.Pointer(&data[0]), C.uint(len(data)), (*C.uint)(unsafe.Pointer(&bytesRead)), nil); result == 0 {
 		lastError := getLastError()
-		if lastError == sysEOF { // ERROR_HANDLE_EOF
+		if lastError == C.ERROR_HANDLE_EOF {
 			return bytesRead, io.EOF
 		}
 
@@ -85,15 +71,15 @@ func (f *file) Seek(offset int64, whence int) (int64, error) {
 	var method uint
 	switch whence {
 	case io.SeekStart:
-		method = 0 // FILE_BEGIN
+		method = C.FILE_BEGIN
 	case io.SeekCurrent:
-		method = 1 // FILE_CURRENT
+		method = C.FILE_CURRENT
 	case io.SeekEnd:
-		method = 2 // FILE_END
+		method = C.FILE_END
 	}
 
 	result := C.SFileSetFilePointer(f.handle, C.int(offset), nil, C.uint(method))
-	if result == math.MaxUint32 { // SFILE_INVALID_SIZE
+	if result == C.SFILE_INVALID_SIZE {
 		return 0, fmt.Errorf("failed to set file pointer (%d)", getLastError())
 	}
 
