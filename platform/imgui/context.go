@@ -16,6 +16,7 @@ import (
 const (
 	pointerSize     = unsafe.Sizeof(C.uintptr_t(0))
 	drawCommandSize = unsafe.Sizeof(C.ImDrawCmd{})
+	indexSize       = unsafe.Sizeof(C.ImDrawIdx(0))
 	vertexSize      = unsafe.Sizeof(C.ImDrawVert{})
 	vertexOffsetPos = unsafe.Offsetof(C.ImDrawVert{}.pos)
 	vertexOffsetUv  = unsafe.Offsetof(C.ImDrawVert{}.uv)
@@ -99,7 +100,7 @@ func (c *Context) Destroy() error {
 
 	log.Println("imgui context destroy")
 	gl.DeleteTextures(1, &c.fontTexture)
-	singleton.nativeIo.Fonts.TexID = C.ImTextureID(uintptr(c.fontTexture))
+	singleton.nativeIo.Fonts.TexID = C.nativeHandleCast(C.uintptr_t(c.fontTexture))
 	c.fontTexture = 0
 
 	singleton.refCount--
@@ -122,7 +123,7 @@ func (c *Context) SetBufferSize(bufferSize math.Vec2i) {
 }
 
 func (c *Context) BeginFrame() {
-	singleton.nativeIo.Fonts.TexID = C.ImTextureID(uintptr(c.fontTexture))
+	singleton.nativeIo.Fonts.TexID = C.nativeHandleCast(C.uintptr_t(c.fontTexture))
 	singleton.nativeIo.DisplaySize.x = C.float(c.displaySize.X)
 	singleton.nativeIo.DisplaySize.y = C.float(c.displaySize.Y)
 
@@ -242,10 +243,12 @@ func (c *Context) EndFrame() error {
 	)
 
 	for i := C.int(0); i < drawData.CmdListsCount; i++ {
-		commandList := *(**C.ImDrawList)(unsafe.Pointer(uintptr(unsafe.Pointer(drawData.CmdLists)) + pointerSize*uintptr(i)))
-		vertexBuffer := unsafe.Pointer(commandList.VtxBuffer.Data)
-		indexBuffer := unsafe.Pointer(commandList.IdxBuffer.Data)
-		indexBufferOffset := uintptr(indexBuffer)
+		var (
+			commandList  = *(**C.ImDrawList)(unsafe.Pointer(uintptr(unsafe.Pointer(drawData.CmdLists)) + pointerSize*uintptr(i)))
+			vertexBuffer = unsafe.Pointer(commandList.VtxBuffer.Data)
+			indexBuffer  = unsafe.Pointer(commandList.IdxBuffer.Data)
+			elementCount = C.unsigned(0)
+		)
 
 		gl.VertexPointer(2, gl.FLOAT, int32(vertexSize), unsafe.Pointer(uintptr(vertexBuffer)+uintptr(vertexOffsetPos)))
 		gl.TexCoordPointer(2, gl.FLOAT, int32(vertexSize), unsafe.Pointer(uintptr(vertexBuffer)+uintptr(vertexOffsetUv)))
@@ -260,8 +263,14 @@ func (c *Context) EndFrame() error {
 				int32(command.ClipRect.w-command.ClipRect.y),
 			)
 			gl.BindTexture(gl.TEXTURE_2D, uint32(uintptr(command.TextureId)))
-			gl.DrawElements(gl.TRIANGLES, int32(command.ElemCount), gl.UNSIGNED_SHORT, unsafe.Pointer(indexBufferOffset))
-			indexBufferOffset += uintptr(command.ElemCount * 2)
+			gl.DrawElements(
+				gl.TRIANGLES,
+				int32(command.ElemCount),
+				gl.UNSIGNED_SHORT,
+				unsafe.Pointer(uintptr(unsafe.Pointer(indexBuffer))+uintptr(elementCount)*uintptr(indexSize)),
+			)
+
+			elementCount += command.ElemCount
 		}
 	}
 
