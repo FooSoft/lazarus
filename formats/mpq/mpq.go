@@ -37,7 +37,7 @@ func NewFromFile(path string) (MpqArchive, error) {
 	defer C.free(unsafe.Pointer(cs))
 
 	a := new(archive)
-	if result := C.SFileOpenArchive(cs, 0, 0, &a.handle); result == 0 {
+	if result := C.SFileOpenArchive(cs, 0, 0, (*C.HANDLE)(&a.handle)); result == 0 {
 		return nil, fmt.Errorf("failed to open archive (%d)", getLastError())
 	}
 
@@ -55,7 +55,7 @@ type file struct {
 
 func (f *file) Read(data []byte) (int, error) {
 	var bytesRead int
-	if result := C.SFileReadFile(f.handle, unsafe.Pointer(&data[0]), C.uint(len(data)), (*C.uint)(unsafe.Pointer(&bytesRead)), nil); result == 0 {
+	if result := C.SFileReadFile(C.HANDLE(f.handle), unsafe.Pointer(&data[0]), C.ulong(len(data)), (*C.ulong)(unsafe.Pointer(&bytesRead)), nil); result == 0 {
 		lastError := getLastError()
 		if lastError == C.ERROR_HANDLE_EOF {
 			return bytesRead, io.EOF
@@ -78,7 +78,7 @@ func (f *file) Seek(offset int64, whence int) (int64, error) {
 		method = C.FILE_END
 	}
 
-	result := C.SFileSetFilePointer(f.handle, C.int(offset), nil, C.uint(method))
+	result := C.SFileSetFilePointer(C.HANDLE(f.handle), C.long(offset), nil, C.ulong(method))
 	if result == C.SFILE_INVALID_SIZE {
 		return 0, fmt.Errorf("failed to set file pointer (%d)", getLastError())
 	}
@@ -87,7 +87,7 @@ func (f *file) Seek(offset int64, whence int) (int64, error) {
 }
 
 func (f *file) Close() error {
-	if result := C.SFileCloseFile(f.handle); result == 0 {
+	if result := C.SFileCloseFile(C.HANDLE(f.handle)); result == 0 {
 		return fmt.Errorf("failed to close file (%d)", getLastError())
 	}
 
@@ -101,7 +101,7 @@ type archive struct {
 }
 
 func (a *archive) Close() error {
-	if result := C.SFileCloseArchive(a.handle); result == 0 {
+	if result := C.SFileCloseArchive(C.HANDLE(a.handle)); result == 0 {
 		return fmt.Errorf("failed to close archive (%d)", getLastError())
 	}
 
@@ -119,7 +119,7 @@ func (a *archive) OpenFile(path string) (File, error) {
 	defer C.free(unsafe.Pointer(cs))
 
 	file := new(file)
-	if result := C.SFileOpenFileEx(a.handle, cs, 0, &file.handle); result == 0 {
+	if result := C.SFileOpenFileEx(C.HANDLE(a.handle), cs, 0, (*C.HANDLE)(&file.handle)); result == 0 {
 		return nil, fmt.Errorf("failed to open file (%d)", getLastError())
 	}
 
