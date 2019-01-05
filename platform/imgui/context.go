@@ -1,6 +1,5 @@
 package imgui
 
-// #cgo linux CFLAGS: -I./cimgui
 // #cgo linux LDFLAGS: -L./cimgui -l:cimgui.a -lstdc++ -lm
 // #include "native.h"
 import "C"

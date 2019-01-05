@@ -1,8 +1,9 @@
 #define bool unsigned char
 
-#define FILE_BEGIN         0
-#define FILE_CURRENT       1
-#define FILE_END           2
+#define FILE_BEGIN   0
+#define FILE_CURRENT 1
+#define FILE_END     2
+
 #define SFILE_INVALID_SIZE 0xffffffff
 
 bool  WINAPI SFileOpenArchive(const TCHAR * szMpqName, DWORD dwPriority, DWORD dwFlags, HANDLE * phMpq);

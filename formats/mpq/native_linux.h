@@ -1,11 +1,13 @@
-#define DWORD            unsigned int
-#define LPDWORD          unsigned int *
-#define LPOVERLAPPED     void *
-#define TCHAR            char
-#define HANDLE           void *
-#define LONG             int
-#define ERROR_HANDLE_EOF 1002
 #define WINAPI
+
+#define DWORD        unsigned long
+#define LPDWORD      unsigned long *
+#define LPOVERLAPPED void *
+#define TCHAR        char
+#define HANDLE       void *
+#define LONG         long
+
+#define ERROR_HANDLE_EOF 1002
 
 DWORD GetLastError();
 
