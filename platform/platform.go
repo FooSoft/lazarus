@@ -5,7 +5,6 @@ import (
 	"runtime"
 
 	"github.com/FooSoft/lazarus/math"
-	"github.com/go-gl/gl/v2.1/gl"
 	"github.com/veandco/go-sdl2/sdl"
 )
 
@@ -45,11 +44,6 @@ func NewWindow(title string, size math.Vec2i, scene Scene) (*Window, error) {
 		sdl.GLSetAttribute(sdl.GL_CONTEXT_MAJOR_VERSION, 2)
 		sdl.GLSetAttribute(sdl.GL_CONTEXT_MINOR_VERSION, 1)
 		sdl.GLSetAttribute(sdl.GL_DOUBLEBUFFER, 1)
-
-		log.Println("opengl global init")
-		if err := gl.Init(); err != nil {
-			return nil, err
-		}
 
 		singleton.sdlIsInit = true
 	}

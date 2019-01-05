@@ -44,6 +44,11 @@ func newWindow(title string, size math.Vec2i, scene Scene) (*Window, error) {
 
 	w.makeCurrent()
 
+	log.Println("opengl init")
+	if err := gl.Init(); err != nil {
+		return nil, err
+	}
+
 	w.imguiContext, err = imgui.New(w.DisplaySize(), w.BufferSize())
 	if err != nil {
 		w.Destroy()
