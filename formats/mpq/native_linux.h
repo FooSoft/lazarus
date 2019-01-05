@@ -3,7 +3,6 @@
 #define LPOVERLAPPED     void *
 #define TCHAR            char
 #define HANDLE           void *
-#define bool             unsigned char
 #define LONG             int
 #define ERROR_HANDLE_EOF 1002
 #define WINAPI

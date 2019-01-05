@@ -1,3 +1,5 @@
+#define bool unsigned char
+
 #define FILE_BEGIN         0
 #define FILE_CURRENT       1
 #define FILE_END           2
