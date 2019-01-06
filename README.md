@@ -85,6 +85,66 @@ Lazarus is only tested on Windows 10, but should in theory run on anything newer
     ```
     You should now have a `libstorm.a` statically linked library in the `stormlib` directory.
 
+## Tools ##
+
+This project includes several tools which are used to demonstrate the capabilities of the engine as well as manipulate
+game data for debugging purposes. Make sure to perform the setup steps outlined in the "Building" section before
+installing these packages.
+
+### `dc6` ###
+
+Converts the frames of one or more DC6 animations to PNG files, using the provided palette file.
+
+*   Installation:
+    ```
+    $ go get github.com/FooSoft/lazarus/tools/dc6
+    ```
+*   Usage:
+    ```
+    Usage: dc6 [options] palette_file [dc6_files]
+    Parameters:
+
+    -target string
+            target directory (default ".")
+    ```
+
+### `mpq` ###
+
+Extracts the contents of one or more MPQ archives to a target directory, using an optional filter.
+
+*   Installation:
+    ```
+    $ go get github.com/FooSoft/lazarus/tools/mpq
+    ```
+*   Usage:
+    ```
+    Usage: mpq [options] command [files]
+    Parameters:
+
+    -filter string
+            wildcard file filter (default "**")
+    -target string
+            target directory (default ".")
+    ```
+
+### `viewer` ###
+
+Displays the frames of DC6 animation files, using the provided palette file. A grayscale fallback palette is used if no
+palette is provided on the command line.
+
+*   Installation:
+    ```
+    $ go get github.com/FooSoft/lazarus/tools/viewer
+    ```
+*   Usage:
+    ```
+    Usage: viewer [options] file
+    Parameters:
+
+    -palette string
+            path to palette file
+    ```
+
 ## License ##
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
