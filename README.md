@@ -55,12 +55,12 @@ Lazarus is only tested on Windows 10, but should in theory run on anything newer
 
 1.  Download the latest 64-bit MSI installer for Go from the [official homepage](https://golang.org/dl/); install to the default directory.
 2.  Download and the latest 64-bit EXE installer for MSYS2 from the [official homepage](https://www.msys2.org/); install to the default directory.
-3.  Run MSYS2 MinGW and install the required packages:
+3.  Install the required packages (using the MSYS MinGW terminal):
     ```
     $ pacman -S mingw-w64-x86_64-gcc cmake make git mingw-w64-x86_64-SDL2 zlib-devel libbz2-devel
     ```
 4.  Add `C:\msys64\usr\bin` and `C:\msys64\mingw64\bin` to your system's `PATH` environment variable.
-5.  Build the [Dear ImGui](https://github.com/ocornut/imgui) wrapper package:
+5.  Build the [Dear ImGui](https://github.com/ocornut/imgui) wrapper package (using the system command prompt):
     ```
     $ go get github.com/FooSoft/lazarus/platform/imgui
     ```
@@ -72,7 +72,7 @@ Lazarus is only tested on Windows 10, but should in theory run on anything newer
     $ make
     ```
     You should now have a `cimgui.a` statically linked library in the `cimgui` directory.
-6.  Build the [StormLib](http://zezula.net/en/mpq/stormlib.html) wrapper package:
+6.  Build the [StormLib](http://zezula.net/en/mpq/stormlib.html) wrapper package (using the system command prompt):
     ```
     $ go get github.com/FooSoft/lazarus/formats/mpq
     ```
