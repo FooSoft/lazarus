@@ -1,5 +1,6 @@
 package imgui
 
+// #cgo linux LDFLAGS: -L./cimgui -l:cimgui.a -lstdc++ -lm
 // #include "native.h"
 import "C"
 import (
@@ -9,27 +10,27 @@ import (
 	"github.com/FooSoft/lazarus/math"
 )
 
-func (*Context) DialogBegin(label string) bool {
+func DialogBegin(label string) bool {
 	labelC := C.CString(label)
 	defer C.free(unsafe.Pointer(labelC))
 	return bool(C.igBegin(labelC, nil, 0))
 }
 
-func (*Context) DialogEnd() {
+func DialogEnd() {
 	C.igEnd()
 }
 
-func (*Context) Button(label string) bool {
+func Button(label string) bool {
 	labelC := C.CString(label)
 	defer C.free(unsafe.Pointer(labelC))
 	return bool(C.igButton(labelC, C.ImVec2{}))
 }
 
-func (c *Context) Image(texture graphics.Texture) {
-	c.ImageSized(texture, texture.Size())
+func Image(texture graphics.Texture) {
+	ImageSized(texture, texture.Size())
 }
 
-func (*Context) ImageSized(texture graphics.Texture, size math.Vec2i) {
+func ImageSized(texture graphics.Texture, size math.Vec2i) {
 	C.igImage(
 		C.nativeHandleCast(C.uintptr_t(texture.Id())),
 		C.ImVec2{x: C.float(size.X), y: C.float(size.Y)},
@@ -40,7 +41,7 @@ func (*Context) ImageSized(texture graphics.Texture, size math.Vec2i) {
 	)
 }
 
-func (*Context) SliderInt(label string, value *int, min, max int) bool {
+func SliderInt(label string, value *int, min, max int) bool {
 	labelC := C.CString(label)
 	defer C.free(unsafe.Pointer(labelC))
 	valueC := C.int(*value)
@@ -49,7 +50,7 @@ func (*Context) SliderInt(label string, value *int, min, max int) bool {
 	return result
 }
 
-func (*Context) Text(label string) {
+func Text(label string) {
 	labelStartC := C.CString(label)
 	labelEndC := (*C.char)(unsafe.Pointer(uintptr(unsafe.Pointer(labelStartC)) + uintptr(len(label))))
 	defer C.free(unsafe.Pointer(labelStartC))

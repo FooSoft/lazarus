@@ -1,6 +1,7 @@
 package platform
 
 import (
+	"errors"
 	"log"
 
 	"github.com/FooSoft/lazarus/graphics"
@@ -10,78 +11,88 @@ import (
 	"github.com/veandco/go-sdl2/sdl"
 )
 
-type Window struct {
+var (
+	ErrWindowExists    = errors.New("only one window can exist at a time")
+	ErrWindowNotExists = errors.New("no window has been created")
+)
+
+var windowState struct {
 	sdlWindow    *sdl.Window
 	sdlGlContext sdl.GLContext
-	imguiContext *imgui.Context
 	scene        Scene
 }
 
-func newWindow(title string, size math.Vec2i, scene Scene) (*Window, error) {
+func WindowCreate(title string, size math.Vec2i, scene Scene) error {
+	if WindowIsCreated() {
+		return ErrWindowExists
+	}
+
+	platformInit()
+
+	var err error
 	log.Println("window create")
-	sdlWindow, err := sdl.CreateWindow(
-		title,
-		sdl.WINDOWPOS_CENTERED,
-		sdl.WINDOWPOS_CENTERED,
-		int32(size.X),
-		int32(size.Y),
-		sdl.WINDOW_OPENGL,
-	)
-	if err != nil {
-		return nil, err
+	if windowState.sdlWindow, err = sdl.CreateWindow(title, sdl.WINDOWPOS_CENTERED, sdl.WINDOWPOS_CENTERED, int32(size.X), int32(size.Y), sdl.WINDOW_OPENGL); err != nil {
+		return err
 	}
 
-	sdlGlContext, err := sdlWindow.GLCreateContext()
-	if err != nil {
-		sdlWindow.Destroy()
-		return nil, err
+	log.Println("window gl context create")
+	if windowState.sdlGlContext, err = windowState.sdlWindow.GLCreateContext(); err != nil {
+		WindowDestroy()
+		return err
 	}
 
-	w := &Window{
-		sdlWindow:    sdlWindow,
-		sdlGlContext: sdlGlContext,
-	}
+	log.Println("window gl context make current")
+	windowState.sdlWindow.GLMakeCurrent(windowState.sdlGlContext)
 
-	w.makeCurrent()
-
-	log.Println("opengl init")
+	log.Println("window gl init")
 	if err := gl.Init(); err != nil {
-		return nil, err
+		WindowDestroy()
+		return err
 	}
 
-	w.imguiContext, err = imgui.New(w.DisplaySize(), w.BufferSize())
-	if err != nil {
-		w.Destroy()
-		return nil, err
+	if err := imgui.Create(); err != nil {
+		WindowDestroy()
+		return err
 	}
 
-	if err := w.SetScene(scene); err != nil {
-		w.Destroy()
-		return nil, err
+	if err := WindowSetScene(scene); err != nil {
+		WindowDestroy()
+		return err
 	}
 
-	return w, nil
+	return nil
 }
 
-func (w *Window) SetScene(scene Scene) error {
-	if w.scene == scene {
+func WindowSetScene(scene Scene) error {
+	if !WindowIsCreated() {
+		return ErrWindowNotExists
+	}
+
+	if windowState.scene == scene {
 		return nil
 	}
 
-	log.Printf("scene transition \"%v\" => \"%v\"\n", sceneName(w.scene), sceneName(scene))
+	sceneName := func(s Scene) string {
+		if s == nil {
+			return "<nil>"
+		} else {
+			return s.Name()
+		}
+	}
 
-	if sceneDestroyer, ok := w.scene.(SceneDestroyer); ok {
-		log.Printf("scene notify destroy \"%s\"\n", sceneName(w.scene))
-		if err := sceneDestroyer.Destroy(w); err != nil {
+	if sceneDestroyer, ok := windowState.scene.(SceneDestroyer); ok {
+		log.Printf("window scene notify destroy \"%s\"\n", sceneName(windowState.scene))
+		if err := sceneDestroyer.Destroy(); err != nil {
 			return err
 		}
 	}
 
-	w.scene = scene
+	log.Printf("window scene transition \"%v\" => \"%v\"\n", sceneName(windowState.scene), sceneName(scene))
+	windowState.scene = scene
 
 	if sceneCreator, ok := scene.(SceneCreator); ok {
-		log.Printf("scene notify create \"%s\"\n", sceneName(w.scene))
-		if err := sceneCreator.Create(w); err != nil {
+		log.Printf("window scene notify create \"%s\"\n", sceneName(windowState.scene))
+		if err := sceneCreator.Create(); err != nil {
 			return err
 		}
 	}
@@ -89,52 +100,41 @@ func (w *Window) SetScene(scene Scene) error {
 	return nil
 }
 
-func (w *Window) Destroy() error {
-	if w == nil || w.sdlWindow == nil {
+func WindowDestroy() error {
+	if !WindowIsCreated() {
 		return nil
 	}
 
-	w.makeCurrent()
-
-	if err := w.SetScene(nil); err != nil {
+	if err := WindowSetScene(nil); err != nil {
 		return err
 	}
 
-	if err := w.imguiContext.Destroy(); err != nil {
+	if err := imgui.Destroy(); err != nil {
 		return err
 	}
-	w.imguiContext = nil
 
-	sdl.GLDeleteContext(w.sdlGlContext)
-	w.sdlGlContext = nil
-
-	if err := w.sdlWindow.Destroy(); err != nil {
-		return err
-	}
-	w.sdlWindow = nil
+	log.Println("window gl context destroy")
+	sdl.GLDeleteContext(windowState.sdlGlContext)
+	windowState.sdlGlContext = nil
 
 	log.Println("window destroy")
-	removeWindow(w)
+	if err := windowState.sdlWindow.Destroy(); err != nil {
+		return err
+	}
+	windowState.sdlWindow = nil
 
 	return nil
 }
 
-func (w *Window) CreateTextureRgba(colors []math.Color4b, size math.Vec2i) (graphics.Texture, error) {
-	w.makeCurrent()
-	return newTextureFromRgba(colors, size)
-}
+func WindowRenderTexture(texture graphics.Texture, position math.Vec2i) error {
+	if !WindowIsCreated() {
+		return ErrWindowNotExists
+	}
 
-func (w *Window) CreateTextureRgb(colors []math.Color3b, size math.Vec2i) (graphics.Texture, error) {
-	w.makeCurrent()
-	return newTextureFromRgb(colors, size)
-}
-
-func (w *Window) RenderTexture(texture graphics.Texture, position math.Vec2i) {
 	size := texture.Size()
 
 	gl.Enable(gl.TEXTURE_2D)
 	gl.BindTexture(gl.TEXTURE_2D, uint32(texture.Id()))
-
 	gl.Begin(gl.QUADS)
 	gl.TexCoord2f(0, 0)
 	gl.Vertex2f(0, 0)
@@ -145,31 +145,48 @@ func (w *Window) RenderTexture(texture graphics.Texture, position math.Vec2i) {
 	gl.TexCoord2f(1, 0)
 	gl.Vertex2f(float32(size.X), 0)
 	gl.End()
+
+	return nil
 }
 
-func (w *Window) DisplaySize() math.Vec2i {
-	width, height := w.sdlWindow.GetSize()
-	return math.Vec2i{X: int(width), Y: int(height)}
+func WindowDisplaySize() (math.Vec2i, error) {
+	if !WindowIsCreated() {
+		return math.Vec2i{}, ErrWindowNotExists
+	}
+
+	width, height := windowState.sdlWindow.GetSize()
+	return math.Vec2i{X: int(width), Y: int(height)}, nil
 }
 
-func (w *Window) BufferSize() math.Vec2i {
-	width, height := w.sdlWindow.GLGetDrawableSize()
-	return math.Vec2i{X: int(width), Y: int(height)}
+func WindowIsCreated() bool {
+	return windowState.sdlWindow != nil
 }
 
-func (w *Window) Imgui() *imgui.Context {
-	return w.imguiContext
+func windowBufferSize() (math.Vec2i, error) {
+	if !WindowIsCreated() {
+		return math.Vec2i{}, ErrWindowNotExists
+	}
+
+	width, height := windowState.sdlWindow.GLGetDrawableSize()
+	return math.Vec2i{X: int(width), Y: int(height)}, nil
 }
 
-func (w *Window) advance() (bool, error) {
-	w.makeCurrent()
+func windowAdvance() (bool, error) {
+	if !WindowIsCreated() {
+		return false, ErrWindowNotExists
+	}
 
-	displaySize := w.DisplaySize()
-	w.imguiContext.SetDisplaySize(displaySize)
-	bufferSize := w.BufferSize()
-	w.imguiContext.SetBufferSize(bufferSize)
+	displaySize, err := WindowDisplaySize()
+	if err != nil {
+		return false, err
+	}
 
-	w.imguiContext.BeginFrame()
+	bufferSize, err := windowBufferSize()
+	if err != nil {
+		return false, err
+	}
+
+	imgui.BeginFrame(displaySize, bufferSize)
 
 	gl.Viewport(0, 0, int32(displaySize.X), int32(displaySize.Y))
 	gl.Clear(gl.COLOR_BUFFER_BIT)
@@ -179,23 +196,22 @@ func (w *Window) advance() (bool, error) {
 	gl.MatrixMode(gl.MODELVIEW)
 	gl.LoadIdentity()
 
-	if sceneAdvancer, ok := w.scene.(SceneAdvancer); ok {
-		if err := sceneAdvancer.Advance(w); err != nil {
+	if sceneAdvancer, ok := windowState.scene.(SceneAdvancer); ok {
+		if err := sceneAdvancer.Advance(); err != nil {
 			return false, err
 		}
 	}
 
-	w.imguiContext.EndFrame()
-	w.sdlWindow.GLSwap()
+	imgui.EndFrame()
+	windowState.sdlWindow.GLSwap()
 
-	return w.scene != nil, nil
+	return windowState.scene != nil, nil
 }
 
-func (w *Window) processEvent(event sdl.Event) (bool, error) {
-	return w.imguiContext.ProcessEvent(event)
-}
+func windowProcessEvent(event sdl.Event) (bool, error) {
+	if !WindowIsCreated() {
+		return false, ErrWindowNotExists
+	}
 
-func (w *Window) makeCurrent() {
-	w.sdlWindow.GLMakeCurrent(w.sdlGlContext)
-
+	return imgui.ProcessEvent(event)
 }

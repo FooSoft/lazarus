@@ -9,11 +9,15 @@ import (
 )
 
 type texture struct {
-	size      math.Vec2i
 	glTexture uint32
+	size      math.Vec2i
 }
 
-func newTextureFromRgba(colors []math.Color4b, size math.Vec2i) (graphics.Texture, error) {
+func NewTextureFromRgba(colors []math.Color4b, size math.Vec2i) (graphics.Texture, error) {
+	if !WindowIsCreated() {
+		return nil, ErrWindowNotExists
+	}
+
 	var glLastTexture int32
 	gl.GetIntegerv(gl.TEXTURE_BINDING_2D, &glLastTexture)
 
@@ -26,10 +30,14 @@ func newTextureFromRgba(colors []math.Color4b, size math.Vec2i) (graphics.Textur
 	gl.TexImage2D(gl.TEXTURE_2D, 0, gl.RGBA, int32(size.X), int32(size.Y), 0, gl.RGBA, gl.UNSIGNED_BYTE, unsafe.Pointer(&colors[0]))
 
 	gl.BindTexture(gl.TEXTURE_2D, uint32(glLastTexture))
-	return &texture{size, glTexture}, nil
+	return &texture{glTexture, size}, nil
 }
 
-func newTextureFromRgb(colors []math.Color3b, size math.Vec2i) (graphics.Texture, error) {
+func NewTextureFromRgb(colors []math.Color3b, size math.Vec2i) (graphics.Texture, error) {
+	if !WindowIsCreated() {
+		return nil, ErrWindowNotExists
+	}
+
 	var glLastTexture int32
 	gl.GetIntegerv(gl.TEXTURE_BINDING_2D, &glLastTexture)
 
@@ -43,7 +51,7 @@ func newTextureFromRgb(colors []math.Color3b, size math.Vec2i) (graphics.Texture
 	gl.TexImage2D(gl.TEXTURE_2D, 0, gl.RGB, int32(size.X), int32(size.Y), 0, gl.RGB, gl.UNSIGNED_BYTE, unsafe.Pointer(&colors[0]))
 
 	gl.BindTexture(gl.TEXTURE_2D, uint32(glLastTexture))
-	return &texture{size, glTexture}, nil
+	return &texture{glTexture, size}, nil
 }
 
 func (t *texture) Id() graphics.TextureId {

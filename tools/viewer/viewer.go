@@ -12,6 +12,7 @@ import (
 	"github.com/FooSoft/lazarus/graphics"
 	"github.com/FooSoft/lazarus/math"
 	"github.com/FooSoft/lazarus/platform"
+	"github.com/FooSoft/lazarus/platform/imgui"
 )
 
 func loadPalette(path string) (*dat.DatPalette, error) {
@@ -45,7 +46,7 @@ func (s *scene) Name() string {
 	return "viewer"
 }
 
-func (s *scene) Destroy(window *platform.Window) error {
+func (s *scene) Destroy() error {
 	if s.texture != nil {
 		return s.texture.Destroy()
 	}
@@ -53,19 +54,17 @@ func (s *scene) Destroy(window *platform.Window) error {
 	return nil
 }
 
-func (s *scene) Advance(window *platform.Window) error {
+func (s *scene) Advance() error {
 	var (
 		directionIndex = s.directionIndex
 		frameIndex     = s.frameIndex
 	)
 
 	if s.texture == nil {
-		if err := s.updateTexture(window); err != nil {
+		if err := s.updateTexture(); err != nil {
 			return err
 		}
 	}
-
-	imgui := window.Imgui()
 
 	imgui.DialogBegin("DC6 Viewer")
 	imgui.Image(s.texture)
@@ -78,20 +77,20 @@ func (s *scene) Advance(window *platform.Window) error {
 	imgui.Text(fmt.Sprintf("Size: %+v", frame.Size))
 	imgui.Text(fmt.Sprintf("Offset: %+v", frame.Offset))
 	if imgui.Button("Exit") {
-		window.SetScene(nil)
+		platform.WindowSetScene(nil)
 	}
 	imgui.DialogEnd()
 
 	if directionIndex != s.directionIndex || frameIndex != s.frameIndex {
 		s.directionIndex = directionIndex
 		s.frameIndex = frameIndex
-		s.updateTexture(window)
+		s.updateTexture()
 	}
 
 	return nil
 }
 
-func (s *scene) updateTexture(window *platform.Window) error {
+func (s *scene) updateTexture() error {
 	frame := s.animation.Directions[s.directionIndex].Frames[s.frameIndex]
 	colors := make([]math.Color3b, frame.Size.X*frame.Size.Y)
 	for y := 0; y < frame.Size.Y; y++ {
@@ -107,7 +106,7 @@ func (s *scene) updateTexture(window *platform.Window) error {
 	}
 
 	var err error
-	s.texture, err = window.CreateTextureRgb(colors, frame.Size)
+	s.texture, err = platform.NewTextureFromRgb(colors, frame.Size)
 	if err != nil {
 		return err
 	}
@@ -151,12 +150,11 @@ func main() {
 	}
 
 	scene := &scene{animation: animation, palette: palette}
-	window, err := platform.NewWindow("Viewer", math.Vec2i{X: 1024, Y: 768}, scene)
-	if err != nil {
+	if err := platform.WindowCreate("Viewer", math.Vec2i{X: 1024, Y: 768}, scene); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
-	defer window.Destroy()
+	defer platform.WindowDestroy()
 
 	for {
 		run, err := platform.Advance()

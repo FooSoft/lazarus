@@ -1,15 +1,19 @@
 package imgui
 
-// #cgo linux LDFLAGS: -L./cimgui -l:cimgui.a -lstdc++ -lm
 // #include "native.h"
 import "C"
 import (
+	"errors"
 	"log"
 	"unsafe"
 
 	"github.com/FooSoft/lazarus/math"
 	"github.com/go-gl/gl/v2.1/gl"
 	"github.com/veandco/go-sdl2/sdl"
+)
+
+var (
+	ErrNotInit = errors.New("imgui context was not created")
 )
 
 const (
@@ -46,159 +50,162 @@ var keyMapping = map[int]C.int{
 	C.ImGuiKey_Z:          sdl.SCANCODE_Z,
 }
 
-var singleton struct {
-	nativeContext *C.ImGuiContext
-	nativeIo      *C.ImGuiIO
-	refCount      int
-}
+var imguiState struct {
+	imguiContext *C.ImGuiContext
+	imguiIo      *C.ImGuiIO
 
-type Context struct {
-	buttonsDown [3]bool
-	lastTime    uint64
 	fontTexture uint32
 	displaySize math.Vec2i
 	bufferSize  math.Vec2i
+	buttonsDown [3]bool
+	lastTime    uint64
 }
 
-func New(displaySize, bufferSize math.Vec2i) (*Context, error) {
-	singleton.refCount++
-	if singleton.refCount == 1 {
-		log.Println("imgui global create")
-		singleton.nativeContext = C.igCreateContext(nil)
-		singleton.nativeIo = C.igGetIO()
-
-		for imguiKey, nativeKey := range keyMapping {
-			singleton.nativeIo.KeyMap[imguiKey] = nativeKey
-		}
+func Create() error {
+	if IsCreated() {
+		return nil
 	}
 
-	log.Println("imgui context create")
-	c := &Context{displaySize: displaySize, bufferSize: bufferSize}
+	log.Println("imgui create")
+	imguiState.imguiContext = C.igCreateContext(nil)
+	imguiState.imguiIo = C.igGetIO()
+
+	for imguiKey, nativeKey := range keyMapping {
+		imguiState.imguiIo.KeyMap[imguiKey] = nativeKey
+	}
 
 	var imageData *C.uchar
 	var imageWidth, imageHeight C.int
-	C.ImFontAtlas_GetTexDataAsRGBA32(singleton.nativeIo.Fonts, &imageData, &imageWidth, &imageHeight, nil)
+	C.ImFontAtlas_GetTexDataAsRGBA32(imguiState.imguiIo.Fonts, &imageData, &imageWidth, &imageHeight, nil)
 
 	var lastTexture int32
 	gl.GetIntegerv(gl.TEXTURE_BINDING_2D, &lastTexture)
-	gl.GenTextures(1, &c.fontTexture)
-	gl.BindTexture(gl.TEXTURE_2D, c.fontTexture)
+	gl.GenTextures(1, &imguiState.fontTexture)
+	gl.BindTexture(gl.TEXTURE_2D, imguiState.fontTexture)
 	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR)
 	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
 	gl.PixelStorei(gl.UNPACK_ROW_LENGTH, 0)
 	gl.TexImage2D(gl.TEXTURE_2D, 0, gl.RGBA, int32(imageWidth), int32(imageHeight), 0, gl.RGBA, gl.UNSIGNED_BYTE, unsafe.Pointer(imageData))
 	gl.BindTexture(gl.TEXTURE_2D, uint32(lastTexture))
 
-	return c, nil
+	return nil
 }
 
-func (c *Context) Destroy() error {
-	if c == nil || c.fontTexture == 0 {
+func IsCreated() bool {
+	return imguiState.imguiContext != nil
+}
+
+func Destroy() error {
+	if !IsCreated() {
 		return nil
 	}
 
-	log.Println("imgui context destroy")
-	gl.DeleteTextures(1, &c.fontTexture)
-	singleton.nativeIo.Fonts.TexID = C.nativeHandleCast(C.uintptr_t(c.fontTexture))
-	c.fontTexture = 0
+	gl.DeleteTextures(1, &imguiState.fontTexture)
+	imguiState.imguiIo.Fonts.TexID = C.nativeHandleCast(C.uintptr_t(imguiState.fontTexture))
+	imguiState.fontTexture = 0
 
-	singleton.refCount--
-	if singleton.refCount == 0 {
-		log.Println("imgui global destroy")
-		C.igDestroyContext(singleton.nativeContext)
-		singleton.nativeContext = nil
-		singleton.nativeIo = nil
-	}
+	log.Println("imgui destroy")
+	C.igDestroyContext(imguiState.imguiContext)
+	imguiState.imguiContext = nil
+	imguiState.imguiIo = nil
 
 	return nil
 }
 
-func (c *Context) SetDisplaySize(displaySize math.Vec2i) {
-	c.displaySize = displaySize
-}
+func BeginFrame(displaySize, bufferSize math.Vec2i) error {
+	if !IsCreated() {
+		return ErrNotInit
+	}
 
-func (c *Context) SetBufferSize(bufferSize math.Vec2i) {
-	c.bufferSize = bufferSize
-}
+	imguiState.displaySize = displaySize
+	imguiState.bufferSize = bufferSize
 
-func (c *Context) BeginFrame() {
-	singleton.nativeIo.Fonts.TexID = C.nativeHandleCast(C.uintptr_t(c.fontTexture))
-	singleton.nativeIo.DisplaySize.x = C.float(c.displaySize.X)
-	singleton.nativeIo.DisplaySize.y = C.float(c.displaySize.Y)
+	imguiState.imguiIo.Fonts.TexID = C.nativeHandleCast(C.uintptr_t(imguiState.fontTexture))
+	imguiState.imguiIo.DisplaySize.x = C.float(displaySize.X)
+	imguiState.imguiIo.DisplaySize.y = C.float(displaySize.Y)
 
 	currentTime := sdl.GetPerformanceCounter()
-	if c.lastTime > 0 {
-		singleton.nativeIo.DeltaTime = C.float(float32(currentTime-c.lastTime) / float32(sdl.GetPerformanceFrequency()))
+	if imguiState.lastTime > 0 {
+		imguiState.imguiIo.DeltaTime = C.float(float32(currentTime-imguiState.lastTime) / float32(sdl.GetPerformanceFrequency()))
 	} else {
-		singleton.nativeIo.DeltaTime = C.float(1.0 / 60.0)
+		imguiState.imguiIo.DeltaTime = C.float(1.0 / 60.0)
 	}
-	c.lastTime = currentTime
+	imguiState.lastTime = currentTime
 
 	x, y, state := sdl.GetMouseState()
-	singleton.nativeIo.MousePos.x = C.float(x)
-	singleton.nativeIo.MousePos.y = C.float(y)
+	imguiState.imguiIo.MousePos.x = C.float(x)
+	imguiState.imguiIo.MousePos.y = C.float(y)
 	for i, button := range []uint32{sdl.BUTTON_LEFT, sdl.BUTTON_RIGHT, sdl.BUTTON_MIDDLE} {
-		singleton.nativeIo.MouseDown[i] = C.bool(c.buttonsDown[i] || (state&sdl.Button(button)) != 0)
-		c.buttonsDown[i] = false
+		imguiState.imguiIo.MouseDown[i] = C.bool(imguiState.buttonsDown[i] || (state&sdl.Button(button)) != 0)
+		imguiState.buttonsDown[i] = false
 	}
 
 	C.igNewFrame()
+	return nil
 }
 
-func (c *Context) ProcessEvent(event sdl.Event) (bool, error) {
+func ProcessEvent(event sdl.Event) (bool, error) {
+	if !IsCreated() {
+		return false, ErrNotInit
+	}
+
 	switch event.GetType() {
 	case sdl.MOUSEWHEEL:
 		wheelEvent := event.(*sdl.MouseWheelEvent)
 		if wheelEvent.X > 0 {
-			singleton.nativeIo.MouseDelta.x++
+			imguiState.imguiIo.MouseDelta.x++
 		} else if wheelEvent.X < 0 {
-			singleton.nativeIo.MouseDelta.x--
+			imguiState.imguiIo.MouseDelta.x--
 		}
 		if wheelEvent.Y > 0 {
-			singleton.nativeIo.MouseDelta.y++
+			imguiState.imguiIo.MouseDelta.y++
 		} else if wheelEvent.Y < 0 {
-			singleton.nativeIo.MouseDelta.y--
+			imguiState.imguiIo.MouseDelta.y--
 		}
 		return true, nil
 	case sdl.MOUSEBUTTONDOWN:
 		buttonEvent := event.(*sdl.MouseButtonEvent)
 		switch buttonEvent.Button {
 		case sdl.BUTTON_LEFT:
-			c.buttonsDown[0] = true
+			imguiState.buttonsDown[0] = true
 			break
 		case sdl.BUTTON_RIGHT:
-			c.buttonsDown[1] = true
+			imguiState.buttonsDown[1] = true
 			break
 		case sdl.BUTTON_MIDDLE:
-			c.buttonsDown[2] = true
+			imguiState.buttonsDown[2] = true
 			break
 		}
 		return true, nil
 	case sdl.TEXTINPUT:
 		inputEvent := event.(*sdl.TextInputEvent)
-		C.ImGuiIO_AddInputCharactersUTF8(singleton.nativeIo, (*C.char)(unsafe.Pointer(&inputEvent.Text[0])))
+		C.ImGuiIO_AddInputCharactersUTF8(imguiState.imguiIo, (*C.char)(unsafe.Pointer(&inputEvent.Text[0])))
 		return true, nil
 	case sdl.KEYDOWN:
 		keyEvent := event.(*sdl.KeyboardEvent)
-		singleton.nativeIo.KeysDown[keyEvent.Keysym.Scancode] = true
+		imguiState.imguiIo.KeysDown[keyEvent.Keysym.Scancode] = true
 		modState := sdl.GetModState()
-		singleton.nativeIo.KeyCtrl = C.bool(modState&sdl.KMOD_CTRL != 0)
-		singleton.nativeIo.KeyAlt = C.bool(modState&sdl.KMOD_ALT != 0)
-		singleton.nativeIo.KeyShift = C.bool(modState&sdl.KMOD_SHIFT != 0)
+		imguiState.imguiIo.KeyCtrl = C.bool(modState&sdl.KMOD_CTRL != 0)
+		imguiState.imguiIo.KeyAlt = C.bool(modState&sdl.KMOD_ALT != 0)
+		imguiState.imguiIo.KeyShift = C.bool(modState&sdl.KMOD_SHIFT != 0)
 	case sdl.KEYUP:
 		keyEvent := event.(*sdl.KeyboardEvent)
-		singleton.nativeIo.KeysDown[keyEvent.Keysym.Scancode] = false
+		imguiState.imguiIo.KeysDown[keyEvent.Keysym.Scancode] = false
 		modState := sdl.GetModState()
-		singleton.nativeIo.KeyCtrl = C.bool(modState&sdl.KMOD_CTRL != 0)
-		singleton.nativeIo.KeyAlt = C.bool(modState&sdl.KMOD_ALT != 0)
-		singleton.nativeIo.KeyShift = C.bool(modState&sdl.KMOD_SHIFT != 0)
+		imguiState.imguiIo.KeyCtrl = C.bool(modState&sdl.KMOD_CTRL != 0)
+		imguiState.imguiIo.KeyAlt = C.bool(modState&sdl.KMOD_ALT != 0)
+		imguiState.imguiIo.KeyShift = C.bool(modState&sdl.KMOD_SHIFT != 0)
 		return true, nil
 	}
 
 	return false, nil
 }
 
-func (c *Context) EndFrame() error {
+func EndFrame() error {
+	if !IsCreated() {
+		return ErrNotInit
+	}
+
 	C.igRender()
 
 	var lastTexture int32
@@ -223,11 +230,11 @@ func (c *Context) EndFrame() error {
 	gl.Enable(gl.TEXTURE_2D)
 	gl.PolygonMode(gl.FRONT_AND_BACK, gl.FILL)
 
-	gl.Viewport(0, 0, int32(c.bufferSize.X), int32(c.bufferSize.Y))
+	gl.Viewport(0, 0, int32(imguiState.bufferSize.X), int32(imguiState.bufferSize.Y))
 	gl.MatrixMode(gl.PROJECTION)
 	gl.PushMatrix()
 	gl.LoadIdentity()
-	gl.Ortho(0, float64(c.displaySize.X), float64(c.displaySize.Y), 0, -1, 1)
+	gl.Ortho(0, float64(imguiState.displaySize.X), float64(imguiState.displaySize.Y), 0, -1, 1)
 	gl.MatrixMode(gl.MODELVIEW)
 	gl.PushMatrix()
 	gl.LoadIdentity()
@@ -236,8 +243,8 @@ func (c *Context) EndFrame() error {
 	C.ImDrawData_ScaleClipRects(
 		drawData,
 		C.ImVec2{
-			x: C.float(float32(c.bufferSize.X) / float32(c.displaySize.X)),
-			y: C.float(float32(c.bufferSize.Y) / float32(c.displaySize.Y)),
+			x: C.float(float32(imguiState.bufferSize.X) / float32(imguiState.displaySize.X)),
+			y: C.float(float32(imguiState.bufferSize.Y) / float32(imguiState.displaySize.Y)),
 		},
 	)
 
@@ -257,7 +264,7 @@ func (c *Context) EndFrame() error {
 			command := (*C.ImDrawCmd)(unsafe.Pointer(uintptr(unsafe.Pointer(commandList.CmdBuffer.Data)) + drawCommandSize*uintptr(j)))
 			gl.Scissor(
 				int32(command.ClipRect.x),
-				int32(c.bufferSize.Y)-int32(command.ClipRect.w),
+				int32(imguiState.bufferSize.Y)-int32(command.ClipRect.w),
 				int32(command.ClipRect.z-command.ClipRect.x),
 				int32(command.ClipRect.w-command.ClipRect.y),
 			)

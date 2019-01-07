@@ -4,99 +4,45 @@ import (
 	"log"
 	"runtime"
 
-	"github.com/FooSoft/lazarus/math"
 	"github.com/veandco/go-sdl2/sdl"
 )
 
-var singleton struct {
+var platfromState struct {
 	sdlIsInit bool
-	windows   []*Window
 }
 
 func Advance() (bool, error) {
-	if err := advanceWindows(); err != nil {
-		return false, err
-	}
-
 	for event := sdl.PollEvent(); event != nil; event = sdl.PollEvent() {
 		switch event.(type) {
 		case *sdl.QuitEvent:
 			return false, nil
 		default:
-			if err := processWindowEvents(event); err != nil {
+			if _, err := windowProcessEvent(event); err != nil {
 				return false, err
 			}
 		}
 	}
 
-	return len(singleton.windows) > 0, nil
+	run, err := windowAdvance()
+	if !run {
+		WindowDestroy()
+	}
+
+	return run, err
 }
 
-func NewWindow(title string, size math.Vec2i, scene Scene) (*Window, error) {
-	if !singleton.sdlIsInit {
-		runtime.LockOSThread()
-
-		log.Println("sdl global init")
-		if err := sdl.Init(sdl.INIT_VIDEO); err != nil {
-			return nil, err
-		}
-
-		sdl.GLSetAttribute(sdl.GL_CONTEXT_MAJOR_VERSION, 2)
-		sdl.GLSetAttribute(sdl.GL_CONTEXT_MINOR_VERSION, 1)
-		sdl.GLSetAttribute(sdl.GL_DOUBLEBUFFER, 1)
-
-		singleton.sdlIsInit = true
+func platformInit() error {
+	if platfromState.sdlIsInit {
+		return nil
 	}
 
-	w, err := newWindow(title, size, scene)
-	if err != nil {
-		return nil, err
+	runtime.LockOSThread()
+
+	log.Println("sdl init")
+	if err := sdl.Init(sdl.INIT_VIDEO); err != nil {
+		return err
 	}
 
-	appendWindow(w)
-	return w, err
-}
-
-func appendWindow(window *Window) {
-	singleton.windows = append(singleton.windows, window)
-}
-
-func removeWindow(window *Window) bool {
-	for i, w := range singleton.windows {
-		if w == window {
-			singleton.windows = append(singleton.windows[:i], singleton.windows[i+1:]...)
-			return true
-		}
-	}
-
-	return false
-}
-
-func advanceWindows() error {
-	var windowsToRemove []*Window
-	for _, window := range singleton.windows {
-		run, err := window.advance()
-		if err != nil {
-			return err
-		}
-		if !run {
-			windowsToRemove = append(windowsToRemove, window)
-		}
-	}
-
-	for _, window := range windowsToRemove {
-		removeWindow(window)
-	}
-
-	return nil
-}
-
-func processWindowEvents(event sdl.Event) error {
-	for _, window := range singleton.windows {
-		if _, err := window.processEvent(event); err != nil {
-			return err
-		}
-	}
-
+	platfromState.sdlIsInit = true
 	return nil
 }

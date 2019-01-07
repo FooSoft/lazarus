@@ -5,21 +5,13 @@ type Scene interface {
 }
 
 type SceneCreator interface {
-	Create(window *Window) error
+	Create() error
 }
 
 type SceneAdvancer interface {
-	Advance(window *Window) error
+	Advance() error
 }
 
 type SceneDestroyer interface {
-	Destroy(window *Window) error
-}
-
-func sceneName(scene Scene) string {
-	if scene == nil {
-		return "<nil>"
-	} else {
-		return scene.Name()
-	}
+	Destroy() error
 }
