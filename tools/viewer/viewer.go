@@ -66,7 +66,7 @@ func (s *scene) Advance() error {
 		}
 	}
 
-	imgui.DialogBegin("DC6 Viewer")
+	imgui.Begin("DC6 Viewer")
 	imgui.Image(s.texture)
 	direction := s.animation.Directions[directionIndex]
 	if imgui.SliderInt("Direction", &directionIndex, 0, len(s.animation.Directions)-1) {
@@ -79,7 +79,7 @@ func (s *scene) Advance() error {
 	if imgui.Button("Exit") {
 		platform.WindowSetScene(nil)
 	}
-	imgui.DialogEnd()
+	imgui.End()
 
 	if directionIndex != s.directionIndex || frameIndex != s.frameIndex {
 		s.directionIndex = directionIndex

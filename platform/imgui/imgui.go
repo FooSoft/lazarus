@@ -10,20 +10,20 @@ import (
 	"github.com/FooSoft/lazarus/math"
 )
 
-func DialogBegin(label string) bool {
+func Begin(label string) bool {
 	labelC := C.CString(label)
 	defer C.free(unsafe.Pointer(labelC))
 	return bool(C.igBegin(labelC, nil, 0))
-}
-
-func DialogEnd() {
-	C.igEnd()
 }
 
 func Button(label string) bool {
 	labelC := C.CString(label)
 	defer C.free(unsafe.Pointer(labelC))
 	return bool(C.igButton(labelC, C.ImVec2{}))
+}
+
+func End() {
+	C.igEnd()
 }
 
 func Image(texture graphics.Texture) {
@@ -39,6 +39,10 @@ func ImageSized(texture graphics.Texture, size math.Vec2i) {
 		C.ImVec4{1, 1, 1, 1},
 		C.ImVec4{0, 0, 0, 0},
 	)
+}
+
+func SameLine() {
+	C.igSameLine(0, -1)
 }
 
 func SliderInt(label string, value *int, min, max int) bool {

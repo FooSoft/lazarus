@@ -152,16 +152,8 @@ func ProcessEvent(event sdl.Event) (bool, error) {
 	switch event.GetType() {
 	case sdl.MOUSEWHEEL:
 		wheelEvent := event.(*sdl.MouseWheelEvent)
-		if wheelEvent.X > 0 {
-			imguiState.imguiIo.MouseDelta.x++
-		} else if wheelEvent.X < 0 {
-			imguiState.imguiIo.MouseDelta.x--
-		}
-		if wheelEvent.Y > 0 {
-			imguiState.imguiIo.MouseDelta.y++
-		} else if wheelEvent.Y < 0 {
-			imguiState.imguiIo.MouseDelta.y--
-		}
+		imguiState.imguiIo.MouseWheelH += C.float(wheelEvent.X)
+		imguiState.imguiIo.MouseWheel += C.float(wheelEvent.Y)
 		return true, nil
 	case sdl.MOUSEBUTTONDOWN:
 		buttonEvent := event.(*sdl.MouseButtonEvent)
