@@ -74,8 +74,15 @@ func (s *scene) Advance() error {
 	}
 	frame := direction.Frames[frameIndex]
 	imgui.SliderInt("Frame", &frameIndex, 0, len(direction.Frames)-1)
-	imgui.Text(fmt.Sprintf("Size: %+v", frame.Size))
-	imgui.Text(fmt.Sprintf("Offset: %+v", frame.Offset))
+	imgui.Columns(2)
+	imgui.Text("Size")
+	imgui.NextColumn()
+	imgui.Text(fmt.Sprintf("%+v", frame.Size))
+	imgui.NextColumn()
+	imgui.Text("Offset")
+	imgui.NextColumn()
+	imgui.Text(fmt.Sprintf("%+v", frame.Offset))
+	imgui.Columns(1)
 	if imgui.Button("Exit") {
 		platform.WindowSetScene(nil)
 	}

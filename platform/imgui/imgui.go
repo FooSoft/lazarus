@@ -16,14 +16,14 @@ func Begin(label string) bool {
 	return bool(C.igBegin(labelC, nil, 0))
 }
 
+func End() {
+	C.igEnd()
+}
+
 func Button(label string) bool {
 	labelC := C.CString(label)
 	defer C.free(unsafe.Pointer(labelC))
 	return bool(C.igButton(labelC, C.ImVec2{}))
-}
-
-func End() {
-	C.igEnd()
 }
 
 func Image(texture graphics.Texture) {
@@ -59,4 +59,12 @@ func Text(label string) {
 	labelEndC := (*C.char)(unsafe.Pointer(uintptr(unsafe.Pointer(labelStartC)) + uintptr(len(label))))
 	defer C.free(unsafe.Pointer(labelStartC))
 	C.igTextUnformatted(labelStartC, labelEndC)
+}
+
+func Columns(count int) {
+	C.igColumns(C.int(count), nil, true)
+}
+
+func NextColumn() {
+	C.igNextColumn()
 }
