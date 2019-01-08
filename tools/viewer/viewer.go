@@ -77,11 +77,11 @@ func (s *scene) Advance() error {
 	imgui.Columns(2)
 	imgui.Text("Size")
 	imgui.NextColumn()
-	imgui.Text(fmt.Sprintf("%+v", frame.Size))
+	imgui.Text("%+v", frame.Size)
 	imgui.NextColumn()
 	imgui.Text("Offset")
 	imgui.NextColumn()
-	imgui.Text(fmt.Sprintf("%+v", frame.Offset))
+	imgui.Text("%+v", frame.Offset)
 	imgui.Columns(1)
 	if imgui.Button("Exit") {
 		platform.WindowSetScene(nil)

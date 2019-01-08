@@ -4,6 +4,7 @@ package imgui
 // #include "native.h"
 import "C"
 import (
+	"fmt"
 	"unsafe"
 
 	"github.com/FooSoft/lazarus/graphics"
@@ -54,7 +55,8 @@ func SliderInt(label string, value *int, min, max int) bool {
 	return result
 }
 
-func Text(label string) {
+func Text(format string, args ...interface{}) {
+	label := fmt.Sprintf(format, args...)
 	labelStartC := C.CString(label)
 	labelEndC := (*C.char)(unsafe.Pointer(uintptr(unsafe.Pointer(labelStartC)) + uintptr(len(label))))
 	defer C.free(unsafe.Pointer(labelStartC))
