@@ -16,6 +16,22 @@ var (
 	ErrWindowNotExists = errors.New("no window has been created")
 )
 
+type Scene interface {
+	Name() string
+}
+
+type SceneCreator interface {
+	Create() error
+}
+
+type SceneAdvancer interface {
+	Advance() error
+}
+
+type SceneDestroyer interface {
+	Destroy() error
+}
+
 var windowState struct {
 	sdlWindow    *sdl.Window
 	sdlGlContext sdl.GLContext
