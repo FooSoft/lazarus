@@ -139,7 +139,10 @@ func main() {
 		os.Exit(2)
 	}
 
-	platform.Initialize()
+	if err := platform.Initialize(); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
 	defer platform.Shutdown()
 
 	animation, err := loadAnimation(flag.Arg(0))
