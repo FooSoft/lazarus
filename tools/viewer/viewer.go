@@ -15,7 +15,7 @@ import (
 	"github.com/FooSoft/lazarus/platform/imgui"
 )
 
-func loadPalette(path string) (*dat.DatPalette, error) {
+func loadPalette(path string) (*dat.Palette, error) {
 	fp, err := os.Open(path)
 	if err != nil {
 		return nil, err
@@ -24,7 +24,7 @@ func loadPalette(path string) (*dat.DatPalette, error) {
 	return dat.NewFromReader(fp)
 }
 
-func loadAnimation(path string) (*dc6.Dc6Animation, error) {
+func loadAnimation(path string) (*dc6.Animation, error) {
 	fp, err := os.Open(path)
 	if err != nil {
 		return nil, err
@@ -34,8 +34,8 @@ func loadAnimation(path string) (*dc6.Dc6Animation, error) {
 }
 
 type scene struct {
-	animation *dc6.Dc6Animation
-	palette   *dat.DatPalette
+	animation *dc6.Animation
+	palette   *dat.Palette
 	texture   graphics.Texture
 
 	directionIndex int
@@ -145,7 +145,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	var palette *dat.DatPalette
+	var palette *dat.Palette
 	if len(*palettePath) > 0 {
 		palette, err = loadPalette(*palettePath)
 		if err != nil {

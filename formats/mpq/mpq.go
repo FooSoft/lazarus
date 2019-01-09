@@ -20,23 +20,16 @@ import (
 	"unsafe"
 )
 
-type File interface {
-	Read(data []byte) (int, error)
-	Seek(offset int64, whence int) (int64, error)
-	Close() error
+type Archive struct {
+	handle unsafe.Pointer
+	paths  map[string]string
 }
 
-type MpqArchive interface {
-	OpenFile(path string) (File, error)
-	GetPaths() []string
-	Close() error
-}
-
-func NewFromFile(path string) (MpqArchive, error) {
+func NewFromFile(path string) (*Archive, error) {
 	cs := C.CString(path)
 	defer C.free(unsafe.Pointer(cs))
 
-	a := new(archive)
+	a := new(Archive)
 	if result := C.SFileOpenArchive(cs, 0, 0, (*C.HANDLE)(&a.handle)); result == 0 {
 		return nil, fmt.Errorf("failed to open archive (%d)", getLastError())
 	}
@@ -49,58 +42,7 @@ func NewFromFile(path string) (MpqArchive, error) {
 	return a, nil
 }
 
-type file struct {
-	handle unsafe.Pointer
-}
-
-func (f *file) Read(data []byte) (int, error) {
-	var bytesRead int
-	if result := C.SFileReadFile(C.HANDLE(f.handle), unsafe.Pointer(&data[0]), C.ulong(len(data)), (*C.ulong)(unsafe.Pointer(&bytesRead)), nil); result == 0 {
-		lastError := getLastError()
-		if lastError == C.ERROR_HANDLE_EOF {
-			return bytesRead, io.EOF
-		}
-
-		return 0, fmt.Errorf("failed to read file (%d)", lastError)
-	}
-
-	return bytesRead, nil
-}
-
-func (f *file) Seek(offset int64, whence int) (int64, error) {
-	var method uint
-	switch whence {
-	case io.SeekStart:
-		method = C.FILE_BEGIN
-	case io.SeekCurrent:
-		method = C.FILE_CURRENT
-	case io.SeekEnd:
-		method = C.FILE_END
-	}
-
-	result := C.SFileSetFilePointer(C.HANDLE(f.handle), C.long(offset), nil, C.ulong(method))
-	if result == C.SFILE_INVALID_SIZE {
-		return 0, fmt.Errorf("failed to set file pointer (%d)", getLastError())
-	}
-
-	return int64(result), nil
-}
-
-func (f *file) Close() error {
-	if result := C.SFileCloseFile(C.HANDLE(f.handle)); result == 0 {
-		return fmt.Errorf("failed to close file (%d)", getLastError())
-	}
-
-	f.handle = nil
-	return nil
-}
-
-type archive struct {
-	handle unsafe.Pointer
-	paths  map[string]string
-}
-
-func (a *archive) Close() error {
+func (a *Archive) Close() error {
 	if result := C.SFileCloseArchive(C.HANDLE(a.handle)); result == 0 {
 		return fmt.Errorf("failed to close archive (%d)", getLastError())
 	}
@@ -110,7 +52,7 @@ func (a *archive) Close() error {
 	return nil
 }
 
-func (a *archive) OpenFile(path string) (File, error) {
+func (a *Archive) OpenFile(path string) (*File, error) {
 	if pathInt, ok := a.paths[path]; ok {
 		path = pathInt
 	}
@@ -118,7 +60,7 @@ func (a *archive) OpenFile(path string) (File, error) {
 	cs := C.CString(path)
 	defer C.free(unsafe.Pointer(cs))
 
-	file := new(file)
+	file := new(File)
 	if result := C.SFileOpenFileEx(C.HANDLE(a.handle), cs, 0, (*C.HANDLE)(&file.handle)); result == 0 {
 		return nil, fmt.Errorf("failed to open file (%d)", getLastError())
 	}
@@ -126,7 +68,7 @@ func (a *archive) OpenFile(path string) (File, error) {
 	return file, nil
 }
 
-func (a *archive) GetPaths() []string {
+func (a *Archive) GetPaths() []string {
 	var extPaths []string
 	for extPath := range a.paths {
 		extPaths = append(extPaths, extPath)
@@ -135,7 +77,7 @@ func (a *archive) GetPaths() []string {
 	return extPaths
 }
 
-func (a *archive) buildPathMap() error {
+func (a *Archive) buildPathMap() error {
 	f, err := a.OpenFile("(listfile)")
 	if err != nil {
 		return err
@@ -158,6 +100,52 @@ func (a *archive) buildPathMap() error {
 		}
 	}
 
+	return nil
+}
+
+type File struct {
+	handle unsafe.Pointer
+}
+
+func (f *File) Read(data []byte) (int, error) {
+	var bytesRead int
+	if result := C.SFileReadFile(C.HANDLE(f.handle), unsafe.Pointer(&data[0]), C.ulong(len(data)), (*C.ulong)(unsafe.Pointer(&bytesRead)), nil); result == 0 {
+		lastError := getLastError()
+		if lastError == C.ERROR_HANDLE_EOF {
+			return bytesRead, io.EOF
+		}
+
+		return 0, fmt.Errorf("failed to read file (%d)", lastError)
+	}
+
+	return bytesRead, nil
+}
+
+func (f *File) Seek(offset int64, whence int) (int64, error) {
+	var method uint
+	switch whence {
+	case io.SeekStart:
+		method = C.FILE_BEGIN
+	case io.SeekCurrent:
+		method = C.FILE_CURRENT
+	case io.SeekEnd:
+		method = C.FILE_END
+	}
+
+	result := C.SFileSetFilePointer(C.HANDLE(f.handle), C.long(offset), nil, C.ulong(method))
+	if result == C.SFILE_INVALID_SIZE {
+		return 0, fmt.Errorf("failed to set file pointer (%d)", getLastError())
+	}
+
+	return int64(result), nil
+}
+
+func (f *File) Close() error {
+	if result := C.SFileCloseFile(C.HANDLE(f.handle)); result == 0 {
+		return fmt.Errorf("failed to close file (%d)", getLastError())
+	}
+
+	f.handle = nil
 	return nil
 }
 

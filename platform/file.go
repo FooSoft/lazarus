@@ -3,7 +3,7 @@ package platform
 import "github.com/FooSoft/lazarus/formats/mpq"
 
 var fileState struct {
-	mountPoints map[string]mpq.MpqArchive
+	mountPoints map[string]*mpq.Archive
 }
 
 type File struct {

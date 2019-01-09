@@ -38,12 +38,12 @@ type Frame struct {
 	Data   []byte
 }
 
-type Dc6Animation struct {
+type Animation struct {
 	Directions []Direction
 }
 
-func NewFromReader(reader io.ReadSeeker) (*Dc6Animation, error) {
-	sprite := new(Dc6Animation)
+func NewFromReader(reader io.ReadSeeker) (*Animation, error) {
+	sprite := new(Animation)
 
 	var fileHead fileHeader
 	if err := binary.Read(reader, binary.LittleEndian, &fileHead); err != nil {

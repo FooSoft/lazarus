@@ -14,7 +14,7 @@ import (
 	"github.com/FooSoft/lazarus/formats/dc6"
 )
 
-func loadPalette(path string) (*dat.DatPalette, error) {
+func loadPalette(path string) (*dat.Palette, error) {
 	fp, err := os.Open(path)
 	if err != nil {
 		return nil, err
@@ -23,7 +23,7 @@ func loadPalette(path string) (*dat.DatPalette, error) {
 	return dat.NewFromReader(fp)
 }
 
-func loadSprite(path string) (*dc6.Dc6Animation, error) {
+func loadSprite(path string) (*dc6.Animation, error) {
 	fp, err := os.Open(path)
 	if err != nil {
 		return nil, err
@@ -32,7 +32,7 @@ func loadSprite(path string) (*dc6.Dc6Animation, error) {
 	return dc6.NewFromReader(fp)
 }
 
-func extractSprite(spritePath string, palette *dat.DatPalette, targetDir string) error {
+func extractSprite(spritePath string, palette *dat.Palette, targetDir string) error {
 	sprite, err := loadSprite(spritePath)
 	if err != nil {
 		return err
