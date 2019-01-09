@@ -1,17 +1,57 @@
 package platform
 
 import (
+	"errors"
 	"log"
 	"runtime"
 
 	"github.com/veandco/go-sdl2/sdl"
 )
 
-var platfromState struct {
-	sdlIsInit bool
+var (
+	ErrPlatformNotInit = errors.New("platform is not initialized")
+)
+
+var platformState struct {
+	isInit bool
+}
+
+func Initialize() error {
+	log.Println("platform init")
+
+	if platformState.isInit {
+		return nil
+	}
+
+	runtime.LockOSThread()
+
+	if err := sdl.Init(sdl.INIT_VIDEO); err != nil {
+		return err
+	}
+
+	platformState.isInit = true
+	return nil
+}
+
+func Shutdown() error {
+	log.Println("platform shutdown")
+
+	if !platformState.isInit {
+		return nil
+	}
+
+	if err := FileUnmountAll(); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func Advance() (bool, error) {
+	if !platformState.isInit {
+		return false, ErrPlatformNotInit
+	}
+
 	for event := sdl.PollEvent(); event != nil; event = sdl.PollEvent() {
 		switch event.(type) {
 		case *sdl.QuitEvent:
@@ -29,20 +69,4 @@ func Advance() (bool, error) {
 	}
 
 	return run, err
-}
-
-func platformInit() error {
-	if platfromState.sdlIsInit {
-		return nil
-	}
-
-	runtime.LockOSThread()
-
-	log.Println("sdl init")
-	if err := sdl.Init(sdl.INIT_VIDEO); err != nil {
-		return err
-	}
-
-	platfromState.sdlIsInit = true
-	return nil
 }

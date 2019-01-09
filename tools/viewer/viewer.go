@@ -122,6 +122,9 @@ func (s *scene) updateTexture() error {
 }
 
 func main() {
+	platform.Initialize()
+	defer platform.Shutdown()
+
 	var (
 		palettePath = flag.String("palette", "", "path to palette file")
 	)

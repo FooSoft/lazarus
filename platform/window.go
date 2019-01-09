@@ -43,8 +43,6 @@ func WindowCreate(title string, size math.Vec2i, scene Scene) error {
 		return ErrWindowExists
 	}
 
-	platformInit()
-
 	var err error
 	log.Println("window create")
 	if windowState.sdlWindow, err = sdl.CreateWindow(title, sdl.WINDOWPOS_CENTERED, sdl.WINDOWPOS_CENTERED, int32(size.X), int32(size.Y), sdl.WINDOW_OPENGL); err != nil {

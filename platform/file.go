@@ -17,6 +17,16 @@ func FileUnmountArchive(mountPath string) error {
 	return nil
 }
 
+func FileUnmountAll() error {
+	for _, archive := range fileState.mountPoints {
+		if err := archive.Close(); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func FileOpen(path string) (*File, error) {
 	return nil, nil
 }
