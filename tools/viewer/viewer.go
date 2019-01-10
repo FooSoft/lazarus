@@ -66,6 +66,8 @@ func (s *scene) Advance() error {
 		}
 	}
 
+	imgui.SetNextWindowSize(math.Vec2i{X: 300, Y: 400})
+
 	imgui.Begin("DC6 Viewer")
 	imgui.Image(s.texture)
 	direction := s.animation.Directions[directionIndex]
@@ -82,10 +84,6 @@ func (s *scene) Advance() error {
 	imgui.Text("Offset")
 	imgui.NextColumn()
 	imgui.Text("%+v", frame.Offset)
-	imgui.Columns(1)
-	if imgui.Button("Exit") {
-		platform.WindowSetScene(nil)
-	}
 	imgui.End()
 
 	if directionIndex != s.directionIndex || frameIndex != s.frameIndex {

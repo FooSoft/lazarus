@@ -74,3 +74,11 @@ func NextColumn() {
 func ShowDemoWindow() {
 	C.igShowDemoWindow(nil)
 }
+
+func SetNextWindowPos(pos math.Vec2i) {
+	C.igSetNextWindowPos(C.ImVec2{x: C.float(pos.X), y: C.float(pos.Y)}, C.ImGuiCond_FirstUseEver, C.ImVec2{})
+}
+
+func SetNextWindowSize(size math.Vec2i) {
+	C.igSetNextWindowSize(C.ImVec2{x: C.float(size.X), y: C.float(size.Y)}, C.ImGuiCond_FirstUseEver)
+}
