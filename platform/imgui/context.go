@@ -51,8 +51,8 @@ var keyMapping = map[int]C.int{
 }
 
 var imguiState struct {
-	imguiContext *C.ImGuiContext
-	imguiIo      *C.ImGuiIO
+	context *C.ImGuiContext
+	io      *C.ImGuiIO
 
 	fontTexture uint32
 	displaySize math.Vec2i
@@ -67,16 +67,17 @@ func Create() error {
 	}
 
 	log.Println("imgui create")
-	imguiState.imguiContext = C.igCreateContext(nil)
-	imguiState.imguiIo = C.igGetIO()
 
+	imguiState.context = C.igCreateContext(nil)
+	imguiState.io = C.igGetIO()
+	imguiState.io.IniFilename = nil
 	for imguiKey, nativeKey := range keyMapping {
-		imguiState.imguiIo.KeyMap[imguiKey] = nativeKey
+		imguiState.io.KeyMap[imguiKey] = nativeKey
 	}
 
 	var imageData *C.uchar
 	var imageWidth, imageHeight C.int
-	C.ImFontAtlas_GetTexDataAsRGBA32(imguiState.imguiIo.Fonts, &imageData, &imageWidth, &imageHeight, nil)
+	C.ImFontAtlas_GetTexDataAsRGBA32(imguiState.io.Fonts, &imageData, &imageWidth, &imageHeight, nil)
 
 	var lastTexture int32
 	gl.GetIntegerv(gl.TEXTURE_BINDING_2D, &lastTexture)
@@ -92,7 +93,7 @@ func Create() error {
 }
 
 func IsCreated() bool {
-	return imguiState.imguiContext != nil
+	return imguiState.context != nil
 }
 
 func Destroy() error {
@@ -100,14 +101,15 @@ func Destroy() error {
 		return nil
 	}
 
+	log.Println("imgui destroy")
+
 	gl.DeleteTextures(1, &imguiState.fontTexture)
-	imguiState.imguiIo.Fonts.TexID = C.nativeHandleCast(C.uintptr_t(imguiState.fontTexture))
+	imguiState.io.Fonts.TexID = C.nativeHandleCast(C.uintptr_t(imguiState.fontTexture))
 	imguiState.fontTexture = 0
 
-	log.Println("imgui destroy")
-	C.igDestroyContext(imguiState.imguiContext)
-	imguiState.imguiContext = nil
-	imguiState.imguiIo = nil
+	C.igDestroyContext(imguiState.context)
+	imguiState.context = nil
+	imguiState.io = nil
 
 	return nil
 }
@@ -120,23 +122,23 @@ func BeginFrame(displaySize, bufferSize math.Vec2i) error {
 	imguiState.displaySize = displaySize
 	imguiState.bufferSize = bufferSize
 
-	imguiState.imguiIo.Fonts.TexID = C.nativeHandleCast(C.uintptr_t(imguiState.fontTexture))
-	imguiState.imguiIo.DisplaySize.x = C.float(displaySize.X)
-	imguiState.imguiIo.DisplaySize.y = C.float(displaySize.Y)
+	imguiState.io.Fonts.TexID = C.nativeHandleCast(C.uintptr_t(imguiState.fontTexture))
+	imguiState.io.DisplaySize.x = C.float(displaySize.X)
+	imguiState.io.DisplaySize.y = C.float(displaySize.Y)
 
 	currentTime := sdl.GetPerformanceCounter()
 	if imguiState.lastTime > 0 {
-		imguiState.imguiIo.DeltaTime = C.float(float32(currentTime-imguiState.lastTime) / float32(sdl.GetPerformanceFrequency()))
+		imguiState.io.DeltaTime = C.float(float32(currentTime-imguiState.lastTime) / float32(sdl.GetPerformanceFrequency()))
 	} else {
-		imguiState.imguiIo.DeltaTime = C.float(1.0 / 60.0)
+		imguiState.io.DeltaTime = C.float(1.0 / 60.0)
 	}
 	imguiState.lastTime = currentTime
 
 	x, y, state := sdl.GetMouseState()
-	imguiState.imguiIo.MousePos.x = C.float(x)
-	imguiState.imguiIo.MousePos.y = C.float(y)
+	imguiState.io.MousePos.x = C.float(x)
+	imguiState.io.MousePos.y = C.float(y)
 	for i, button := range []uint32{sdl.BUTTON_LEFT, sdl.BUTTON_RIGHT, sdl.BUTTON_MIDDLE} {
-		imguiState.imguiIo.MouseDown[i] = C.bool(imguiState.buttonsDown[i] || (state&sdl.Button(button)) != 0)
+		imguiState.io.MouseDown[i] = C.bool(imguiState.buttonsDown[i] || (state&sdl.Button(button)) != 0)
 		imguiState.buttonsDown[i] = false
 	}
 
@@ -152,8 +154,8 @@ func ProcessEvent(event sdl.Event) (bool, error) {
 	switch event.GetType() {
 	case sdl.MOUSEWHEEL:
 		wheelEvent := event.(*sdl.MouseWheelEvent)
-		imguiState.imguiIo.MouseWheelH += C.float(wheelEvent.X)
-		imguiState.imguiIo.MouseWheel += C.float(wheelEvent.Y)
+		imguiState.io.MouseWheelH += C.float(wheelEvent.X)
+		imguiState.io.MouseWheel += C.float(wheelEvent.Y)
 		return true, nil
 	case sdl.MOUSEBUTTONDOWN:
 		buttonEvent := event.(*sdl.MouseButtonEvent)
@@ -171,22 +173,22 @@ func ProcessEvent(event sdl.Event) (bool, error) {
 		return true, nil
 	case sdl.TEXTINPUT:
 		inputEvent := event.(*sdl.TextInputEvent)
-		C.ImGuiIO_AddInputCharactersUTF8(imguiState.imguiIo, (*C.char)(unsafe.Pointer(&inputEvent.Text[0])))
+		C.ImGuiIO_AddInputCharactersUTF8(imguiState.io, (*C.char)(unsafe.Pointer(&inputEvent.Text[0])))
 		return true, nil
 	case sdl.KEYDOWN:
 		keyEvent := event.(*sdl.KeyboardEvent)
-		imguiState.imguiIo.KeysDown[keyEvent.Keysym.Scancode] = true
+		imguiState.io.KeysDown[keyEvent.Keysym.Scancode] = true
 		modState := sdl.GetModState()
-		imguiState.imguiIo.KeyCtrl = C.bool(modState&sdl.KMOD_CTRL != 0)
-		imguiState.imguiIo.KeyAlt = C.bool(modState&sdl.KMOD_ALT != 0)
-		imguiState.imguiIo.KeyShift = C.bool(modState&sdl.KMOD_SHIFT != 0)
+		imguiState.io.KeyCtrl = C.bool(modState&sdl.KMOD_CTRL != 0)
+		imguiState.io.KeyAlt = C.bool(modState&sdl.KMOD_ALT != 0)
+		imguiState.io.KeyShift = C.bool(modState&sdl.KMOD_SHIFT != 0)
 	case sdl.KEYUP:
 		keyEvent := event.(*sdl.KeyboardEvent)
-		imguiState.imguiIo.KeysDown[keyEvent.Keysym.Scancode] = false
+		imguiState.io.KeysDown[keyEvent.Keysym.Scancode] = false
 		modState := sdl.GetModState()
-		imguiState.imguiIo.KeyCtrl = C.bool(modState&sdl.KMOD_CTRL != 0)
-		imguiState.imguiIo.KeyAlt = C.bool(modState&sdl.KMOD_ALT != 0)
-		imguiState.imguiIo.KeyShift = C.bool(modState&sdl.KMOD_SHIFT != 0)
+		imguiState.io.KeyCtrl = C.bool(modState&sdl.KMOD_CTRL != 0)
+		imguiState.io.KeyAlt = C.bool(modState&sdl.KMOD_ALT != 0)
+		imguiState.io.KeyShift = C.bool(modState&sdl.KMOD_SHIFT != 0)
 		return true, nil
 	}
 

@@ -70,3 +70,7 @@ func Columns(count int) {
 func NextColumn() {
 	C.igNextColumn()
 }
+
+func ShowDemoWindow() {
+	C.igShowDemoWindow(nil)
+}
