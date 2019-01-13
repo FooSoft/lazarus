@@ -5,20 +5,16 @@ import (
 	"io"
 )
 
-type Writer interface {
-	io.WriteSeeker
-}
-
-type writer struct {
+type Writer struct {
 	data   []byte
 	offset int
 }
 
-func NewWriter(data []byte) Writer {
-	return &writer{data, 0}
+func NewWriter(data []byte) *Writer {
+	return &Writer{data, 0}
 }
 
-func (w *writer) Write(data []byte) (int, error) {
+func (w *Writer) Write(data []byte) (int, error) {
 	length := len(data)
 	if w.offset+length > len(w.data) {
 		length = len(w.data) - w.offset
@@ -34,7 +30,7 @@ func (w *writer) Write(data []byte) (int, error) {
 	return length, nil
 }
 
-func (w *writer) Seek(offset int64, whence int) (int64, error) {
+func (w *Writer) Seek(offset int64, whence int) (int64, error) {
 	result := w.offset
 	switch whence {
 	case io.SeekStart:
