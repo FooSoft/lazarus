@@ -2,7 +2,6 @@ package streaming
 
 import (
 	"bytes"
-	"fmt"
 	"testing"
 )
 
@@ -16,6 +15,28 @@ func TestBitReader(t *testing.T) {
 		0xff, // 11111111
 	}
 
-	reader := NewReader(bytes.NewReader(data))
-	fmt.Println(reader.ReadBits(2))
+	r := NewReader(bytes.NewReader(data))
+
+	readPass := func(c int, v uint64) {
+		if value, err := r.ReadBits(c); value != v || err != nil {
+			t.Fail()
+		}
+	}
+
+	readFail := func(c int) {
+		if value, err := r.ReadBits(c); value != 0 || err == nil {
+			t.Fail()
+		}
+	}
+
+	readPass(0, 0x00)
+	readFail(65)
+	readPass(2, 0x01)
+	readPass(2, 0x02)
+	readPass(3, 0x04)
+	readPass(1, 0x01)
+	readPass(12, 0x096f)
+	readPass(8, 0x000a)
+	readPass(20, 0x0a00ff)
+	readFail(1)
 }

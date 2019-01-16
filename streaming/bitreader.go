@@ -41,6 +41,9 @@ func (r *BitReader) ReadBits(count int) (uint64, error) {
 
 		value <<= uint(bitsRead)
 		value |= uint64(buffer)
+
+		r.offset += bitsRead
+		count -= bitsRead
 	}
 
 	return value, nil
