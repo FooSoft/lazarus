@@ -1,8 +1,11 @@
 package dcc
 
-import "io"
+import (
+	"encoding/binary"
+	"io"
+)
 
-type DccSprite struct {
+type Sprite struct {
 }
 
 type extents struct {
@@ -46,6 +49,11 @@ type frameHeader struct {
 	Extents       extents
 }
 
-func NewFromReader(reader io.ReadSeeker) (*DccSprite, error) {
+func NewFromReader(reader io.ReadSeeker) (*Sprite, error) {
+	var fileHead fileHeader
+	if err := binary.Read(reader, binary.LittleEndian, &fileHead); err != nil {
+		return nil, err
+	}
+
 	return nil, nil
 }

@@ -1,0 +1,67 @@
+package main
+
+import (
+	"flag"
+	"fmt"
+	"os"
+	"path"
+
+	"github.com/FooSoft/lazarus/formats/dat"
+	"github.com/FooSoft/lazarus/formats/dcc"
+)
+
+func loadPalette(path string) (*dat.Palette, error) {
+	fp, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer fp.Close()
+	return dat.NewFromReader(fp)
+}
+
+func loadSprite(path string) (*dcc.Sprite, error) {
+	fp, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer fp.Close()
+	return dcc.NewFromReader(fp)
+}
+
+func extractSprite(spritePath string, palette *dat.Palette, targetDir string) error {
+	_, err := loadSprite(spritePath)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func main() {
+	targetDir := flag.String("target", ".", "target directory")
+	flag.Usage = func() {
+		fmt.Fprintf(os.Stderr, "Usage: %s [options] palette_file [dcc_files]\n", path.Base(os.Args[0]))
+		fmt.Fprintf(os.Stderr, "Parameters:\n\n")
+		flag.PrintDefaults()
+	}
+
+	flag.Parse()
+
+	if flag.NArg() < 1 {
+		flag.Usage()
+		os.Exit(2)
+	}
+
+	palette, err := loadPalette(flag.Arg(0))
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+
+	for i := 1; i < flag.NArg(); i++ {
+		if err := extractSprite(flag.Arg(1), palette, *targetDir); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+	}
+}
