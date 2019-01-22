@@ -2,6 +2,7 @@ package dcc
 
 import (
 	"encoding/binary"
+	"fmt"
 	"io"
 )
 
@@ -55,5 +56,14 @@ func NewFromReader(reader io.ReadSeeker) (*Sprite, error) {
 		return nil, err
 	}
 
+	dirOffsets := make([]uint32, fileHead.DirCount)
+	for i := 0; i < int(fileHead.DirCount); i++ {
+		if err := binary.Read(reader, binary.LittleEndian, &dirOffsets[i]); err != nil {
+			return nil, err
+		}
+	}
+
+	fmt.Printf("%+v\n", fileHead)
+	fmt.Printf("%+v\n", dirOffsets)
 	return nil, nil
 }
