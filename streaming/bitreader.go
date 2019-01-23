@@ -15,7 +15,36 @@ func NewBitReader(reader io.Reader) *BitReader {
 	return &BitReader{reader: reader}
 }
 
-func (r *BitReader) ReadBits(count int) (uint64, error) {
+func (r *BitReader) ReadBitsSigned(count int) (int64, error) {
+	value, err := r.readBits(count)
+	if err != nil {
+		return 0, err
+	}
+
+	if count > 0 {
+		valueMasked := value &^ (1 << uint(count-1))
+		if valueMasked != value {
+			return -int64(valueMasked), nil
+		}
+	}
+
+	return int64(value), nil
+}
+
+func (r *BitReader) ReadBitsUnsigned(count int) (uint64, error) {
+	return r.readBits(count)
+}
+
+func (r *BitReader) ReadBitFlag() (bool, error) {
+	value, err := r.readBits(1)
+	if err != nil {
+		return false, err
+	}
+
+	return value == 1, nil
+}
+
+func (r *BitReader) readBits(count int) (uint64, error) {
 	if count > 64 {
 		return 0, errors.New("cannot read more than 64 bits at a time")
 	}

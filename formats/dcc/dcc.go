@@ -88,52 +88,52 @@ func NewFromReader(reader io.ReadSeeker) (*Sprite, error) {
 func readDirectionHeader(reader io.ReadSeeker) (*directionHeader, error) {
 	r := streaming.NewBitReader(reader)
 
-	codedSize, err := r.ReadBits(32)
+	codedSize, err := r.ReadBitsUnsigned(32)
 	if err != nil {
 		return nil, err
 	}
 
-	hasRawPixelEncoding, err := r.ReadBits(1)
+	hasRawPixelEncoding, err := r.ReadBitsUnsigned(1)
 	if err != nil {
 		return nil, err
 	}
 
-	compressEqualCells, err := r.ReadBits(1)
+	compressEqualCells, err := r.ReadBitsUnsigned(1)
 	if err != nil {
 		return nil, err
 	}
 
-	variable0Bits, err := r.ReadBits(4)
+	variable0Bits, err := r.ReadBitsUnsigned(4)
 	if err != nil {
 		return nil, err
 	}
 
-	widthBits, err := r.ReadBits(4)
+	widthBits, err := r.ReadBitsUnsigned(4)
 	if err != nil {
 		return nil, err
 	}
 
-	heightBits, err := r.ReadBits(4)
+	heightBits, err := r.ReadBitsUnsigned(4)
 	if err != nil {
 		return nil, err
 	}
 
-	offsetXBits, err := r.ReadBits(4)
+	offsetXBits, err := r.ReadBitsUnsigned(4)
 	if err != nil {
 		return nil, err
 	}
 
-	offsetYBits, err := r.ReadBits(4)
+	offsetYBits, err := r.ReadBitsUnsigned(4)
 	if err != nil {
 		return nil, err
 	}
 
-	optionalBytesBits, err := r.ReadBits(4)
+	optionalBytesBits, err := r.ReadBitsUnsigned(4)
 	if err != nil {
 		return nil, err
 	}
 
-	codedBytesBits, err := r.ReadBits(4)
+	codedBytesBits, err := r.ReadBitsUnsigned(4)
 	if err != nil {
 		return nil, err
 	}

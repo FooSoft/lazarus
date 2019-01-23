@@ -18,13 +18,13 @@ func TestBitReader(t *testing.T) {
 	r := NewBitReader(bytes.NewReader(data))
 
 	readPass := func(c int, v uint64) {
-		if value, err := r.ReadBits(c); value != v || err != nil {
+		if value, err := r.ReadBitsUnsigned(c); value != v || err != nil {
 			t.Fail()
 		}
 	}
 
 	readFail := func(c int) {
-		if value, err := r.ReadBits(c); value != 0 || err == nil {
+		if value, err := r.ReadBitsUnsigned(c); value != 0 || err == nil {
 			t.Fail()
 		}
 	}
