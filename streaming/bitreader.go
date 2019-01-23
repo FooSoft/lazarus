@@ -11,7 +11,7 @@ type BitReader struct {
 	buffer [1]byte
 }
 
-func NewReader(reader io.Reader) *BitReader {
+func NewBitReader(reader io.Reader) *BitReader {
 	return &BitReader{reader: reader}
 }
 

@@ -15,7 +15,7 @@ func TestBitReader(t *testing.T) {
 		0xff, // 11111111
 	}
 
-	r := NewReader(bytes.NewReader(data))
+	r := NewBitReader(bytes.NewReader(data))
 
 	readPass := func(c int, v uint64) {
 		if value, err := r.ReadBits(c); value != v || err != nil {

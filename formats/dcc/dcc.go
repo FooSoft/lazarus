@@ -2,8 +2,10 @@ package dcc
 
 import (
 	"encoding/binary"
-	"fmt"
 	"io"
+	"log"
+
+	"github.com/FooSoft/lazarus/streaming"
 )
 
 type Sprite struct {
@@ -51,19 +53,113 @@ type frameHeader struct {
 }
 
 func NewFromReader(reader io.ReadSeeker) (*Sprite, error) {
-	var fileHead fileHeader
-	if err := binary.Read(reader, binary.LittleEndian, &fileHead); err != nil {
+	var header fileHeader
+	if err := binary.Read(reader, binary.LittleEndian, &header); err != nil {
 		return nil, err
 	}
 
-	dirOffsets := make([]uint32, fileHead.DirCount)
-	for i := 0; i < int(fileHead.DirCount); i++ {
-		if err := binary.Read(reader, binary.LittleEndian, &dirOffsets[i]); err != nil {
+	for i := 0; i < int(header.DirCount); i++ {
+		var offsetDir uint32
+		if err := binary.Read(reader, binary.LittleEndian, &offsetDir); err != nil {
+			return nil, err
+		}
+
+		offset, err := reader.Seek(0, io.SeekCurrent)
+		if err != nil {
+			return nil, err
+		}
+
+		if _, err := reader.Seek(int64(offsetDir), io.SeekStart); err != nil {
+			return nil, err
+		}
+
+		if err := readDirection(reader); err != nil {
+			return nil, err
+		}
+
+		if _, err := reader.Seek(offset, io.SeekStart); err != nil {
 			return nil, err
 		}
 	}
 
-	fmt.Printf("%+v\n", fileHead)
-	fmt.Printf("%+v\n", dirOffsets)
 	return nil, nil
+}
+
+func readDirectionHeader(reader io.ReadSeeker) (*directionHeader, error) {
+	r := streaming.NewBitReader(reader)
+
+	codedSize, err := r.ReadBits(32)
+	if err != nil {
+		return nil, err
+	}
+
+	hasRawPixelEncoding, err := r.ReadBits(1)
+	if err != nil {
+		return nil, err
+	}
+
+	compressEqualCells, err := r.ReadBits(1)
+	if err != nil {
+		return nil, err
+	}
+
+	variable0Bits, err := r.ReadBits(4)
+	if err != nil {
+		return nil, err
+	}
+
+	widthBits, err := r.ReadBits(4)
+	if err != nil {
+		return nil, err
+	}
+
+	heightBits, err := r.ReadBits(4)
+	if err != nil {
+		return nil, err
+	}
+
+	offsetXBits, err := r.ReadBits(4)
+	if err != nil {
+		return nil, err
+	}
+
+	offsetYBits, err := r.ReadBits(4)
+	if err != nil {
+		return nil, err
+	}
+
+	optionalBytesBits, err := r.ReadBits(4)
+	if err != nil {
+		return nil, err
+	}
+
+	codedBytesBits, err := r.ReadBits(4)
+	if err != nil {
+		return nil, err
+	}
+
+	header := directionHeader{
+		CodedSize:           uint32(codedSize),
+		HasRawPixelEncoding: hasRawPixelEncoding == 1,
+		CompressEqualCells:  compressEqualCells == 1,
+		Variable0Bits:       uint32(variable0Bits),
+		WidthBits:           uint32(widthBits),
+		HeightBits:          uint32(heightBits),
+		OffsetXBits:         int32(offsetXBits),
+		OffsetYBits:         int32(offsetYBits),
+		OptionalBytesBits:   uint32(optionalBytesBits),
+		CodedBytesBits:      uint32(codedBytesBits),
+	}
+
+	return &header, nil
+}
+
+func readDirection(reader io.ReadSeeker) error {
+	header, err := readDirectionHeader(reader)
+	if err != nil {
+		return err
+	}
+
+	log.Printf("%+v\n", header)
+	return nil
 }
