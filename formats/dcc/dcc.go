@@ -88,67 +88,59 @@ func NewFromReader(reader io.ReadSeeker) (*Sprite, error) {
 func readDirectionHeader(reader io.ReadSeeker) (*directionHeader, error) {
 	r := streaming.NewBitReader(reader)
 
-	codedSize, err := r.ReadBitsUnsigned(32)
+	var (
+		header directionHeader
+		err    error
+	)
+
+	header.CodedSize, err = r.ReadUint32(32)
 	if err != nil {
 		return nil, err
 	}
 
-	hasRawPixelEncoding, err := r.ReadBitsUnsigned(1)
+	header.HasRawPixelEncoding, err = r.ReadBool()
 	if err != nil {
 		return nil, err
 	}
 
-	compressEqualCells, err := r.ReadBitsUnsigned(1)
+	header.CompressEqualCells, err = r.ReadBool()
 	if err != nil {
 		return nil, err
 	}
 
-	variable0Bits, err := r.ReadBitsUnsigned(4)
+	header.Variable0Bits, err = r.ReadUint32(4)
 	if err != nil {
 		return nil, err
 	}
 
-	widthBits, err := r.ReadBitsUnsigned(4)
+	header.WidthBits, err = r.ReadUint32(4)
 	if err != nil {
 		return nil, err
 	}
 
-	heightBits, err := r.ReadBitsUnsigned(4)
+	header.HeightBits, err = r.ReadUint32(4)
 	if err != nil {
 		return nil, err
 	}
 
-	offsetXBits, err := r.ReadBitsUnsigned(4)
+	header.OffsetXBits, err = r.ReadInt32(4)
 	if err != nil {
 		return nil, err
 	}
 
-	offsetYBits, err := r.ReadBitsUnsigned(4)
+	header.OffsetYBits, err = r.ReadInt32(4)
 	if err != nil {
 		return nil, err
 	}
 
-	optionalBytesBits, err := r.ReadBitsUnsigned(4)
+	header.OptionalBytesBits, err = r.ReadUint32(4)
 	if err != nil {
 		return nil, err
 	}
 
-	codedBytesBits, err := r.ReadBitsUnsigned(4)
+	header.CodedBytesBits, err = r.ReadUint32(4)
 	if err != nil {
 		return nil, err
-	}
-
-	header := directionHeader{
-		CodedSize:           uint32(codedSize),
-		HasRawPixelEncoding: hasRawPixelEncoding == 1,
-		CompressEqualCells:  compressEqualCells == 1,
-		Variable0Bits:       uint32(variable0Bits),
-		WidthBits:           uint32(widthBits),
-		HeightBits:          uint32(heightBits),
-		OffsetXBits:         int32(offsetXBits),
-		OffsetYBits:         int32(offsetYBits),
-		OptionalBytesBits:   uint32(optionalBytesBits),
-		CodedBytesBits:      uint32(codedBytesBits),
 	}
 
 	return &header, nil

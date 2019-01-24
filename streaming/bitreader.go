@@ -1,7 +1,6 @@
 package streaming
 
 import (
-	"errors"
 	"io"
 )
 
@@ -15,8 +14,43 @@ func NewBitReader(reader io.Reader) *BitReader {
 	return &BitReader{reader: reader}
 }
 
-func (r *BitReader) ReadBitsSigned(count int) (int64, error) {
-	value, err := r.readBits(count)
+func (r *BitReader) ReadBool() (bool, error) {
+	value, err := r.ReadUint64(1)
+	return value == 1, err
+}
+
+func (r *BitReader) ReadInt8(count int) (int8, error) {
+	value, err := r.ReadInt64(count)
+	return int8(value), err
+}
+
+func (r *BitReader) ReadUint8(count int) (uint8, error) {
+	value, err := r.ReadUint64(count)
+	return uint8(value), err
+}
+
+func (r *BitReader) ReadInt16(count int) (int16, error) {
+	value, err := r.ReadInt64(count)
+	return int16(value), err
+}
+
+func (r *BitReader) ReadUint16(count int) (uint16, error) {
+	value, err := r.ReadUint64(count)
+	return uint16(value), err
+}
+
+func (r *BitReader) ReadInt32(count int) (int32, error) {
+	value, err := r.ReadInt64(count)
+	return int32(value), err
+}
+
+func (r *BitReader) ReadUint32(count int) (uint32, error) {
+	value, err := r.ReadUint64(count)
+	return uint32(value), err
+}
+
+func (r *BitReader) ReadInt64(count int) (int64, error) {
+	value, err := r.ReadUint64(count)
 	if err != nil {
 		return 0, err
 	}
@@ -31,24 +65,7 @@ func (r *BitReader) ReadBitsSigned(count int) (int64, error) {
 	return int64(value), nil
 }
 
-func (r *BitReader) ReadBitsUnsigned(count int) (uint64, error) {
-	return r.readBits(count)
-}
-
-func (r *BitReader) ReadBitFlag() (bool, error) {
-	value, err := r.readBits(1)
-	if err != nil {
-		return false, err
-	}
-
-	return value == 1, nil
-}
-
-func (r *BitReader) readBits(count int) (uint64, error) {
-	if count > 64 {
-		return 0, errors.New("cannot read more than 64 bits at a time")
-	}
-
+func (r *BitReader) ReadUint64(count int) (uint64, error) {
 	var value uint64
 	for count > 0 {
 		bitOffset := r.offset % 8
