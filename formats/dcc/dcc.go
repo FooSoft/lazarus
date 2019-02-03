@@ -2,8 +2,9 @@ package dcc
 
 import (
 	"encoding/binary"
+	"errors"
+	"fmt"
 	"io"
-	"log"
 
 	"github.com/FooSoft/lazarus/streaming"
 )
@@ -53,12 +54,12 @@ type frameHeader struct {
 }
 
 func NewFromReader(reader io.ReadSeeker) (*Sprite, error) {
-	var header fileHeader
-	if err := binary.Read(reader, binary.LittleEndian, &header); err != nil {
+	var fileHead fileHeader
+	if err := binary.Read(reader, binary.LittleEndian, &fileHead); err != nil {
 		return nil, err
 	}
 
-	for i := 0; i < int(header.DirCount); i++ {
+	for i := 0; i < int(fileHead.DirCount); i++ {
 		var offsetDir uint32
 		if err := binary.Read(reader, binary.LittleEndian, &offsetDir); err != nil {
 			return nil, err
@@ -73,7 +74,7 @@ func NewFromReader(reader io.ReadSeeker) (*Sprite, error) {
 			return nil, err
 		}
 
-		if err := readDirection(reader); err != nil {
+		if err := readDirection(reader, fileHead); err != nil {
 			return nil, err
 		}
 
@@ -89,69 +90,154 @@ func readDirectionHeader(reader io.ReadSeeker) (*directionHeader, error) {
 	r := streaming.NewBitReader(reader)
 
 	var (
-		header directionHeader
-		err    error
+		dirHead directionHeader
+		err     error
 	)
 
-	header.CodedSize, err = r.ReadUint32(32)
+	dirHead.CodedSize, err = r.ReadUint32(32)
 	if err != nil {
 		return nil, err
 	}
 
-	header.HasRawPixelEncoding, err = r.ReadBool()
+	dirHead.HasRawPixelEncoding, err = r.ReadBool()
 	if err != nil {
 		return nil, err
 	}
 
-	header.CompressEqualCells, err = r.ReadBool()
+	dirHead.CompressEqualCells, err = r.ReadBool()
 	if err != nil {
 		return nil, err
 	}
 
-	header.Variable0Bits, err = r.ReadUint32(4)
+	dirHead.Variable0Bits, err = r.ReadUint32(4)
 	if err != nil {
 		return nil, err
 	}
 
-	header.WidthBits, err = r.ReadUint32(4)
+	dirHead.WidthBits, err = r.ReadUint32(4)
 	if err != nil {
 		return nil, err
 	}
 
-	header.HeightBits, err = r.ReadUint32(4)
+	dirHead.HeightBits, err = r.ReadUint32(4)
 	if err != nil {
 		return nil, err
 	}
 
-	header.OffsetXBits, err = r.ReadInt32(4)
+	dirHead.OffsetXBits, err = r.ReadInt32(4)
 	if err != nil {
 		return nil, err
 	}
 
-	header.OffsetYBits, err = r.ReadInt32(4)
+	dirHead.OffsetYBits, err = r.ReadInt32(4)
 	if err != nil {
 		return nil, err
 	}
 
-	header.OptionalBytesBits, err = r.ReadUint32(4)
+	dirHead.OptionalBytesBits, err = r.ReadUint32(4)
 	if err != nil {
 		return nil, err
 	}
 
-	header.CodedBytesBits, err = r.ReadUint32(4)
+	dirHead.CodedBytesBits, err = r.ReadUint32(4)
 	if err != nil {
 		return nil, err
 	}
 
-	return &header, nil
+	return &dirHead, nil
 }
 
-func readDirection(reader io.ReadSeeker) error {
-	header, err := readDirectionHeader(reader)
+func readFrameHeader(reader io.ReadSeeker, dirHead directionHeader) (*frameHeader, error) {
+	r := streaming.NewBitReader(reader)
+
+	var (
+		frameHead frameHeader
+		err       error
+	)
+
+	frameHead.Variable0, err = readPackedUint32(r, int(dirHead.Variable0Bits))
+	if err != nil {
+		return nil, err
+	}
+
+	frameHead.Width, err = readPackedUint32(r, int(dirHead.WidthBits))
+	if err != nil {
+		return nil, err
+	}
+
+	frameHead.Height, err = readPackedUint32(r, int(dirHead.HeightBits))
+	if err != nil {
+		return nil, err
+	}
+
+	frameHead.OffsetX, err = readPackedInt32(r, int(dirHead.OffsetXBits))
+	if err != nil {
+		return nil, err
+	}
+
+	frameHead.OffsetY, err = readPackedInt32(r, int(dirHead.OffsetYBits))
+	if err != nil {
+		return nil, err
+	}
+
+	frameHead.OptionalBytes, err = readPackedUint32(r, int(dirHead.OptionalBytesBits))
+	if err != nil {
+		return nil, err
+	}
+
+	frameHead.CodedBytes, err = readPackedUint32(r, int(dirHead.CodedBytesBits))
+	if err != nil {
+		return nil, err
+	}
+
+	frameHead.FrameBottomUp, err = r.ReadBool()
+	if err != nil {
+		return nil, err
+	}
+
+	return &frameHead, nil
+}
+
+func readDirection(reader io.ReadSeeker, fileHead fileHeader) error {
+	dirHead, err := readDirectionHeader(reader)
 	if err != nil {
 		return err
 	}
 
-	log.Printf("%+v\n", header)
+	frameHead, err := readFrameHeader(reader, *dirHead)
+	if err != nil {
+		return err
+	}
+
+	// fmt.Printf("%+v\n", dirHead)
+	fmt.Printf("%+v\n", frameHead)
+
 	return nil
+}
+
+func readPackedInt32(reader *streaming.BitReader, packedSize int) (int32, error) {
+	width, err := unpackSize(packedSize)
+	if err != nil {
+		return 0, err
+	}
+
+	return reader.ReadInt32(width)
+}
+
+func readPackedUint32(reader *streaming.BitReader, packedSize int) (uint32, error) {
+	width, err := unpackSize(packedSize)
+	if err != nil {
+		return 0, err
+	}
+
+	return reader.ReadUint32(width)
+}
+
+func unpackSize(packedSize int) (int, error) {
+	sizes := []int{0, 1, 2, 4, 6, 8, 10, 12, 14, 16, 20, 24, 26, 28, 30, 32}
+	if packedSize >= len(sizes) {
+		return 0, errors.New("invalid packed size")
+	}
+
+	return sizes[packedSize], nil
 }
