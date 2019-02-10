@@ -2,40 +2,37 @@ package streaming
 
 import (
 	"bytes"
+	"fmt"
 	"testing"
 )
 
 func TestBitReader(t *testing.T) {
 	data := []byte{
-		0x69, // 01101001
-		0x96, // 10010110
-		0xf0, // 11110000
-		0xaa, // 10101010
-		0x00, // 00000000
-		0xff, // 11111111
+		0x01, // 00000001
+		0x23, // 00100011
+		0x45, // 01000101
+		0x67, // 01100111
+		0x89, // 01100111
+		0xAB, // 10101011
+		0xCD, // 11001101
+		0xEF, // 11101111
 	}
 
 	r := NewBitReader(bytes.NewReader(data))
 
 	readPass := func(c int, v uint64) {
 		if value, err := r.ReadUint64(c); value != v || err != nil {
-			t.Fail()
-		}
-	}
-
-	readFail := func(c int) {
-		if value, err := r.ReadUint64(c); value != 0 || err == nil {
+			fmt.Printf("%.16x (expected %.16x)\n", value, v)
 			t.Fail()
 		}
 	}
 
 	readPass(0, 0x00)
-	readPass(2, 0x01)
-	readPass(2, 0x02)
-	readPass(3, 0x04)
-	readPass(1, 0x01)
-	readPass(12, 0x096f)
-	readPass(8, 0x000a)
-	readPass(20, 0x0a00ff)
-	readFail(1)
+	readPass(8, 0x01)
+	readPass(16, 0x4523)
+	readPass(3, 0x67&0x07)
+	readPass(13, 0x8967>>3)
+	readPass(13, 0xcdab&0x1fff)
+	readPass(2, (0xcdab>>13)&3)
+	readPass(9, 0xefcdab>>15)
 }
