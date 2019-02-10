@@ -86,60 +86,58 @@ func NewFromReader(reader io.ReadSeeker) (*Sprite, error) {
 	return nil, nil
 }
 
-func readDirectionHeader(reader io.ReadSeeker) (*directionHeader, error) {
-	r := streaming.NewBitReader(reader)
-
+func readDirectionHeader(bitReader *streaming.BitReader) (*directionHeader, error) {
 	var (
 		dirHead directionHeader
 		err     error
 	)
 
-	dirHead.CodedSize, err = r.ReadUint32(32)
+	dirHead.CodedSize, err = bitReader.ReadUint32(32)
 	if err != nil {
 		return nil, err
 	}
 
-	dirHead.HasRawPixelEncoding, err = r.ReadBool()
+	dirHead.HasRawPixelEncoding, err = bitReader.ReadBool()
 	if err != nil {
 		return nil, err
 	}
 
-	dirHead.CompressEqualCells, err = r.ReadBool()
+	dirHead.CompressEqualCells, err = bitReader.ReadBool()
 	if err != nil {
 		return nil, err
 	}
 
-	dirHead.Variable0Bits, err = r.ReadUint32(4)
+	dirHead.Variable0Bits, err = bitReader.ReadUint32(4)
 	if err != nil {
 		return nil, err
 	}
 
-	dirHead.WidthBits, err = r.ReadUint32(4)
+	dirHead.WidthBits, err = bitReader.ReadUint32(4)
 	if err != nil {
 		return nil, err
 	}
 
-	dirHead.HeightBits, err = r.ReadUint32(4)
+	dirHead.HeightBits, err = bitReader.ReadUint32(4)
 	if err != nil {
 		return nil, err
 	}
 
-	dirHead.OffsetXBits, err = r.ReadInt32(4)
+	dirHead.OffsetXBits, err = bitReader.ReadInt32(4)
 	if err != nil {
 		return nil, err
 	}
 
-	dirHead.OffsetYBits, err = r.ReadInt32(4)
+	dirHead.OffsetYBits, err = bitReader.ReadInt32(4)
 	if err != nil {
 		return nil, err
 	}
 
-	dirHead.OptionalBytesBits, err = r.ReadUint32(4)
+	dirHead.OptionalBytesBits, err = bitReader.ReadUint32(4)
 	if err != nil {
 		return nil, err
 	}
 
-	dirHead.CodedBytesBits, err = r.ReadUint32(4)
+	dirHead.CodedBytesBits, err = bitReader.ReadUint32(4)
 	if err != nil {
 		return nil, err
 	}
@@ -147,50 +145,48 @@ func readDirectionHeader(reader io.ReadSeeker) (*directionHeader, error) {
 	return &dirHead, nil
 }
 
-func readFrameHeader(reader io.ReadSeeker, dirHead directionHeader) (*frameHeader, error) {
-	r := streaming.NewBitReader(reader)
-
+func readFrameHeader(bitReader *streaming.BitReader, dirHead directionHeader) (*frameHeader, error) {
 	var (
 		frameHead frameHeader
 		err       error
 	)
 
-	frameHead.Variable0, err = readPackedUint32(r, int(dirHead.Variable0Bits))
+	frameHead.Variable0, err = readPackedUint32(bitReader, int(dirHead.Variable0Bits))
 	if err != nil {
 		return nil, err
 	}
 
-	frameHead.Width, err = readPackedUint32(r, int(dirHead.WidthBits))
+	frameHead.Width, err = readPackedUint32(bitReader, int(dirHead.WidthBits))
 	if err != nil {
 		return nil, err
 	}
 
-	frameHead.Height, err = readPackedUint32(r, int(dirHead.HeightBits))
+	frameHead.Height, err = readPackedUint32(bitReader, int(dirHead.HeightBits))
 	if err != nil {
 		return nil, err
 	}
 
-	frameHead.OffsetX, err = readPackedInt32(r, int(dirHead.OffsetXBits))
+	frameHead.OffsetX, err = readPackedInt32(bitReader, int(dirHead.OffsetXBits))
 	if err != nil {
 		return nil, err
 	}
 
-	frameHead.OffsetY, err = readPackedInt32(r, int(dirHead.OffsetYBits))
+	frameHead.OffsetY, err = readPackedInt32(bitReader, int(dirHead.OffsetYBits))
 	if err != nil {
 		return nil, err
 	}
 
-	frameHead.OptionalBytes, err = readPackedUint32(r, int(dirHead.OptionalBytesBits))
+	frameHead.OptionalBytes, err = readPackedUint32(bitReader, int(dirHead.OptionalBytesBits))
 	if err != nil {
 		return nil, err
 	}
 
-	frameHead.CodedBytes, err = readPackedUint32(r, int(dirHead.CodedBytesBits))
+	frameHead.CodedBytes, err = readPackedUint32(bitReader, int(dirHead.CodedBytesBits))
 	if err != nil {
 		return nil, err
 	}
 
-	frameHead.FrameBottomUp, err = r.ReadBool()
+	frameHead.FrameBottomUp, err = bitReader.ReadBool()
 	if err != nil {
 		return nil, err
 	}
@@ -199,17 +195,19 @@ func readFrameHeader(reader io.ReadSeeker, dirHead directionHeader) (*frameHeade
 }
 
 func readDirection(reader io.ReadSeeker, fileHead fileHeader) error {
-	dirHead, err := readDirectionHeader(reader)
+	bitReader := streaming.NewBitReader(reader)
+
+	dirHead, err := readDirectionHeader(bitReader)
 	if err != nil {
 		return err
 	}
 
-	frameHead, err := readFrameHeader(reader, *dirHead)
+	frameHead, err := readFrameHeader(bitReader, *dirHead)
 	if err != nil {
 		return err
 	}
 
-	// fmt.Printf("%+v\n", dirHead)
+	fmt.Printf("%+v\n", dirHead)
 	fmt.Printf("%+v\n", frameHead)
 
 	return nil
