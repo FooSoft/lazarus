@@ -22,7 +22,7 @@ type frame struct {
 	bounds bounds
 }
 
-func readFrameHeader(bitReader *streaming.BitReader, dirHead directionHeader) frameHeader {
+func readFrameHeader(bitReader *streaming.BitReader, dirHead directionHeader) (*frameHeader, error) {
 	var frameHead frameHeader
 
 	frameHead.Variable0 = uint32(bitReader.ReadUintPacked(int(dirHead.Variable0Bits)))
@@ -34,30 +34,34 @@ func readFrameHeader(bitReader *streaming.BitReader, dirHead directionHeader) fr
 	frameHead.CodedBytes = uint32(bitReader.ReadUintPacked(int(dirHead.CodedBytesBits)))
 	frameHead.FrameBottomUp = bitReader.ReadBool()
 
-	return frameHead
+	if err := bitReader.Error(); err != nil {
+		return nil, err
+	}
+
+	if frameHead.OptionalBytes != 0 {
+		return nil, errors.New("optional frame data not supported")
+	}
+
+	if frameHead.FrameBottomUp {
+		return nil, errors.New("bottom-up frames are not supported")
+	}
+
+	if frameHead.Width == 0 || frameHead.Height == 0 {
+		return nil, errors.New("invalid frame dimensions")
+	}
+
+	return &frameHead, nil
 }
 
 func readFrameHeaders(bitReader *streaming.BitReader, fileHead fileHeader, dirHead directionHeader) ([]frameHeader, error) {
 	var frameHeads []frameHeader
 	for i := 0; i < int(fileHead.FramesPerDir); i++ {
-		frameHead := readFrameHeader(bitReader, dirHead)
-		if err := bitReader.Error(); err != nil {
+		frameHead, err := readFrameHeader(bitReader, dirHead)
+		if err != nil {
 			return nil, err
 		}
 
-		if frameHead.OptionalBytes != 0 {
-			return nil, errors.New("optional frame data not supported")
-		}
-
-		if frameHead.FrameBottomUp {
-			return nil, errors.New("bottom-up frames are not supported")
-		}
-
-		if frameHead.Width == 0 || frameHead.Height == 0 {
-			return nil, errors.New("invalid frame dimensions")
-		}
-
-		frameHeads = append(frameHeads, frameHead)
+		frameHeads = append(frameHeads, *frameHead)
 	}
 
 	return frameHeads, nil

@@ -19,13 +19,7 @@ type directionHeader struct {
 	CodedBytesBits      uint8
 }
 
-type direction struct {
-	header directionHeader
-	frames []frame
-	bounds bounds
-}
-
-func readDirectionHeader(bitReader *streaming.BitReader) directionHeader {
+func readDirectionHeader(bitReader *streaming.BitReader) (*directionHeader, error) {
 	var dirHead directionHeader
 
 	dirHead.CodedSize = uint32(bitReader.ReadUint(32))
@@ -39,18 +33,22 @@ func readDirectionHeader(bitReader *streaming.BitReader) directionHeader {
 	dirHead.OptionalBytesBits = uint8(bitReader.ReadUint(4))
 	dirHead.CodedBytesBits = uint8(bitReader.ReadUint(4))
 
-	return dirHead
+	if err := bitReader.Error(); err != nil {
+		return nil, err
+	}
+
+	return &dirHead, nil
 }
 
 func readDirection(reader io.ReadSeeker, fileHead fileHeader) (*direction, error) {
 	bitReader := streaming.NewBitReader(reader)
 
-	dirHead := readDirectionHeader(bitReader)
-	if err := bitReader.Error(); err != nil {
+	dirHead, err := readDirectionHeader(bitReader)
+	if err != nil {
 		return nil, err
 	}
 
-	frameHeads, err := readFrameHeaders(bitReader, fileHead, dirHead)
+	frameHeads, err := readFrameHeaders(bitReader, fileHead, *dirHead)
 	if err != nil {
 		return nil, err
 	}
@@ -89,12 +87,12 @@ func readDirection(reader io.ReadSeeker, fileHead fileHeader) (*direction, error
 
 	var entries []pixelBufferEntry
 
-	entries, err = decodeDirectionStage1(bitReader, &dirData, entries)
+	entries, err = dirData.decodeStage1(bitReader, entries)
 	if err != nil {
 		return nil, err
 	}
 
-	entries, err = decodeDirectionStage2(bitReader, &dirData, entries)
+	entries, err = dirData.decodeStage2(bitReader, entries)
 	if err != nil {
 		return nil, err
 	}
@@ -102,10 +100,16 @@ func readDirection(reader io.ReadSeeker, fileHead fileHeader) (*direction, error
 	return &dirData, nil
 }
 
-func decodeDirectionStage1(bitReader *streaming.BitReader, dirData *direction, entries []pixelBufferEntry) ([]pixelBufferEntry, error) {
+type direction struct {
+	header directionHeader
+	frames []frame
+	bounds bounds
+}
+
+func (d *direction) decodeStage1(bitReader *streaming.BitReader, entries []pixelBufferEntry) ([]pixelBufferEntry, error) {
 	return nil, nil
 }
 
-func decodeDirectionStage2(bitReader *streaming.BitReader, dirData *direction, entries []pixelBufferEntry) ([]pixelBufferEntry, error) {
+func (d *direction) decodeStage2(bitReader *streaming.BitReader, entries []pixelBufferEntry) ([]pixelBufferEntry, error) {
 	return nil, nil
 }
