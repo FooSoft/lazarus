@@ -2,7 +2,7 @@ package dcc
 
 import (
 	"encoding/binary"
-	"fmt"
+	"errors"
 	"io"
 
 	"github.com/FooSoft/lazarus/streaming"
@@ -11,11 +11,11 @@ import (
 type Sprite struct {
 }
 
-type extents struct {
-	x1 int32
-	y1 int32
-	x2 int32
-	y2 int32
+type bounds struct {
+	x1 int
+	y1 int
+	x2 int
+	y2 int
 }
 
 type fileHeader struct {
@@ -40,6 +40,12 @@ type directionHeader struct {
 	CodedBytesBits      uint8
 }
 
+type direction struct {
+	header directionHeader
+	frames []frame
+	bounds bounds
+}
+
 type frameHeader struct {
 	Variable0     uint32
 	Width         uint32
@@ -49,7 +55,11 @@ type frameHeader struct {
 	OptionalBytes uint32
 	CodedBytes    uint32
 	FrameBottomUp bool
-	Extents       extents
+}
+
+type frame struct {
+	header frameHeader
+	bounds bounds
 }
 
 func NewFromReader(reader io.ReadSeeker) (*Sprite, error) {
@@ -58,6 +68,7 @@ func NewFromReader(reader io.ReadSeeker) (*Sprite, error) {
 		return nil, err
 	}
 
+	var directions []direction
 	for i := 0; i < int(fileHead.DirCount); i++ {
 		var offsetDir uint32
 		if err := binary.Read(reader, binary.LittleEndian, &offsetDir); err != nil {
@@ -73,9 +84,11 @@ func NewFromReader(reader io.ReadSeeker) (*Sprite, error) {
 			return nil, err
 		}
 
-		if err := readDirection(reader, fileHead); err != nil {
+		dirData, err := readDirection(reader, fileHead)
+		if err != nil {
 			return nil, err
 		}
+		directions = append(directions, *dirData)
 
 		if _, err := reader.Seek(offset, io.SeekStart); err != nil {
 			return nil, err
@@ -85,7 +98,7 @@ func NewFromReader(reader io.ReadSeeker) (*Sprite, error) {
 	return nil, nil
 }
 
-func readDirectionHeader(bitReader *streaming.BitReader) *directionHeader {
+func readDirectionHeader(bitReader *streaming.BitReader) directionHeader {
 	var dirHead directionHeader
 
 	dirHead.CodedSize = uint32(bitReader.ReadUint(32))
@@ -99,10 +112,10 @@ func readDirectionHeader(bitReader *streaming.BitReader) *directionHeader {
 	dirHead.OptionalBytesBits = uint8(bitReader.ReadUint(4))
 	dirHead.CodedBytesBits = uint8(bitReader.ReadUint(4))
 
-	return &dirHead
+	return dirHead
 }
 
-func readFrameHeader(bitReader *streaming.BitReader, dirHead directionHeader) *frameHeader {
+func readFrameHeader(bitReader *streaming.BitReader, dirHead directionHeader) frameHeader {
 	var frameHead frameHeader
 
 	frameHead.Variable0 = uint32(bitReader.ReadUintPacked(int(dirHead.Variable0Bits)))
@@ -114,24 +127,75 @@ func readFrameHeader(bitReader *streaming.BitReader, dirHead directionHeader) *f
 	frameHead.CodedBytes = uint32(bitReader.ReadUintPacked(int(dirHead.CodedBytesBits)))
 	frameHead.FrameBottomUp = bitReader.ReadBool()
 
-	return &frameHead
+	return frameHead
 }
 
-func readDirection(reader io.ReadSeeker, fileHead fileHeader) error {
+func readFrameHeaders(bitReader *streaming.BitReader, fileHead fileHeader, dirHead directionHeader) ([]frameHeader, error) {
+	var frameHeads []frameHeader
+	for i := 0; i < int(fileHead.FramesPerDir); i++ {
+		frameHead := readFrameHeader(bitReader, dirHead)
+		if err := bitReader.Error(); err != nil {
+			return nil, err
+		}
+
+		if frameHead.OptionalBytes != 0 {
+			return nil, errors.New("optional frame data not supported")
+		}
+
+		if frameHead.FrameBottomUp {
+			return nil, errors.New("bottom-up frames are not supported")
+		}
+
+		frameHeads = append(frameHeads, frameHead)
+	}
+
+	return frameHeads, nil
+}
+
+func readDirection(reader io.ReadSeeker, fileHead fileHeader) (*direction, error) {
 	bitReader := streaming.NewBitReader(reader)
 
 	dirHead := readDirectionHeader(bitReader)
 	if err := bitReader.Error(); err != nil {
-		return err
+		return nil, err
 	}
 
-	frameHead := readFrameHeader(bitReader, *dirHead)
-	if err := bitReader.Error(); err != nil {
-		return err
+	frameHeads, err := readFrameHeaders(bitReader, fileHead, dirHead)
+	if err != nil {
+		return nil, err
 	}
 
-	fmt.Printf("%+v\n", dirHead)
-	fmt.Printf("%+v\n", frameHead)
+	var dirData direction
+	for i, frameHead := range frameHeads {
+		frameData := frame{
+			header: frameHead,
+			bounds: bounds{
+				x1: int(frameHead.OffsetX),
+				y1: int(frameHead.OffsetY) - int(frameHead.Height) + 1,
+				x2: int(frameHead.OffsetX) + int(frameHead.Width),
+				y2: int(frameHead.OffsetY) + 1,
+			},
+		}
 
-	return nil
+		dirData.frames = append(dirData.frames, frameData)
+
+		if i == 0 {
+			dirData.bounds = frameData.bounds
+		} else {
+			if dirData.bounds.x1 > frameData.bounds.x1 {
+				dirData.bounds.x1 = frameData.bounds.x1
+			}
+			if dirData.bounds.y1 > frameData.bounds.y1 {
+				dirData.bounds.y1 = frameData.bounds.y1
+			}
+			if dirData.bounds.x2 < frameData.bounds.x2 {
+				dirData.bounds.x2 = frameData.bounds.x2
+			}
+			if dirData.bounds.y2 < frameData.bounds.y2 {
+				dirData.bounds.y2 = frameData.bounds.y2
+			}
+		}
+	}
+
+	return &dirData, nil
 }
