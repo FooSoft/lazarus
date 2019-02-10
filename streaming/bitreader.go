@@ -1,6 +1,7 @@
 package streaming
 
 import (
+	"errors"
 	"io"
 )
 
@@ -8,63 +9,65 @@ type BitReader struct {
 	reader    io.Reader
 	bitOffset int
 	tailByte  byte
+	err       error
 }
 
 func NewBitReader(reader io.Reader) *BitReader {
 	return &BitReader{reader: reader}
 }
 
-func (r *BitReader) ReadBool() (bool, error) {
-	value, err := r.ReadUint64(1)
-	return value == 1, err
+func (r *BitReader) ReadBool() bool {
+	return r.ReadUint(1) != 0
 }
 
-func (r *BitReader) ReadInt8(count int) (int8, error) {
-	value, err := r.ReadInt64(count)
-	return int8(value), err
-}
-
-func (r *BitReader) ReadUint8(count int) (uint8, error) {
-	value, err := r.ReadUint64(count)
-	return uint8(value), err
-}
-
-func (r *BitReader) ReadInt16(count int) (int16, error) {
-	value, err := r.ReadInt64(count)
-	return int16(value), err
-}
-
-func (r *BitReader) ReadUint16(count int) (uint16, error) {
-	value, err := r.ReadUint64(count)
-	return uint16(value), err
-}
-
-func (r *BitReader) ReadInt32(count int) (int32, error) {
-	value, err := r.ReadInt64(count)
-	return int32(value), err
-}
-
-func (r *BitReader) ReadUint32(count int) (uint32, error) {
-	value, err := r.ReadUint64(count)
-	return uint32(value), err
-}
-
-func (r *BitReader) ReadInt64(count int) (int64, error) {
-	value, err := r.ReadUint64(count)
-	if err != nil {
-		return 0, err
+func (r *BitReader) ReadIntPacked(countPacked int) int64 {
+	if r.err != nil {
+		return 0
 	}
 
-	return twosComplement(value, count), nil
+	count, err := unpackSize(countPacked)
+	if err != nil {
+		r.err = err
+		return 0
+	}
+
+	return r.ReadInt(count)
 }
 
-func (r *BitReader) ReadUint64(count int) (uint64, error) {
+func (r *BitReader) ReadInt(count int) int64 {
+	return twosComplement(r.ReadUint(count), count)
+}
+
+func (r *BitReader) ReadUintPacked(countPacked int) uint64 {
+	if r.err != nil {
+		return 0
+	}
+
+	count, err := unpackSize(countPacked)
+	if err != nil {
+		r.err = err
+		return 0
+	}
+
+	return r.ReadUint(count)
+}
+
+func (r *BitReader) ReadUint(count int) uint64 {
+	if r.err != nil {
+		return 0
+	}
+
 	buffer, bitOffset, err := r.readBytes(count)
 	if err != nil {
-		return 0, err
+		r.err = err
+		return 0
 	}
 
-	return readBits(buffer, bitOffset, count), nil
+	return readBits(buffer, bitOffset, count)
+}
+
+func (r *BitReader) Error() error {
+	return r.err
 }
 
 func (r *BitReader) readBytes(count int) ([]byte, int, error) {
@@ -134,4 +137,13 @@ func twosComplement(value uint64, bits int) int64 {
 		valueMask := ^(^uint64(0) << uint(bits-1))
 		return -int64(valueMask & (^value + 1))
 	}
+}
+
+func unpackSize(sizePacked int) (int, error) {
+	sizes := []int{0, 1, 2, 4, 6, 8, 10, 12, 14, 16, 20, 24, 26, 28, 30, 32}
+	if sizePacked >= len(sizes) {
+		return 0, errors.New("invalid packed size")
+	}
+
+	return sizes[sizePacked], nil
 }

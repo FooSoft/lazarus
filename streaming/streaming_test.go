@@ -21,12 +21,13 @@ func TestBitReader(t *testing.T) {
 	r := NewBitReader(bytes.NewReader(data))
 
 	test := func(count int, expected uint64) {
-		value, err := r.ReadUint64(count)
-		if err != nil {
-			log.Printf("error: %s\n", err.Error())
-			t.Fail()
-		} else if value != expected {
+		if value := r.ReadUint(count); value != expected {
 			log.Printf("value: %.16x, expected: %.16x\n", value, expected)
+			t.Fail()
+		}
+
+		if err := r.Error(); err != nil {
+			log.Printf("error: %s\n", err.Error())
 			t.Fail()
 		}
 	}

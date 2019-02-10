@@ -2,7 +2,6 @@ package dcc
 
 import (
 	"encoding/binary"
-	"errors"
 	"fmt"
 	"io"
 
@@ -29,26 +28,26 @@ type fileHeader struct {
 }
 
 type directionHeader struct {
-	CodedSize           uint32
+	CodedSize           uint
 	HasRawPixelEncoding bool
 	CompressEqualCells  bool
-	Variable0Bits       uint32
-	WidthBits           uint32
-	HeightBits          uint32
-	OffsetXBits         int32
-	OffsetYBits         int32
-	OptionalBytesBits   uint32
-	CodedBytesBits      uint32
+	Variable0Bits       uint
+	WidthBits           uint
+	HeightBits          uint
+	OffsetXBits         uint
+	OffsetYBits         uint
+	OptionalBytesBits   uint
+	CodedBytesBits      uint
 }
 
 type frameHeader struct {
-	Variable0     uint32
-	Width         uint32
-	Height        uint32
-	OffsetX       int32
-	OffsetY       int32
-	OptionalBytes uint32
-	CodedBytes    uint32
+	Variable0     uint
+	Width         uint
+	Height        uint
+	OffsetX       int
+	OffsetY       int
+	OptionalBytes uint
+	CodedBytes    uint
 	FrameBottomUp bool
 	Extents       extents
 }
@@ -86,156 +85,46 @@ func NewFromReader(reader io.ReadSeeker) (*Sprite, error) {
 	return nil, nil
 }
 
-func readDirectionHeader(bitReader *streaming.BitReader) (*directionHeader, error) {
-	var (
-		dirHead directionHeader
-		err     error
-	)
+func readDirectionHeader(bitReader *streaming.BitReader) *directionHeader {
+	var dirHead directionHeader
 
-	dirHead.CodedSize, err = bitReader.ReadUint32(32)
-	if err != nil {
-		return nil, err
-	}
+	dirHead.CodedSize = uint(bitReader.ReadUint(32))
+	dirHead.HasRawPixelEncoding = bitReader.ReadBool()
+	dirHead.CompressEqualCells = bitReader.ReadBool()
+	dirHead.Variable0Bits = uint(bitReader.ReadUint(4))
+	dirHead.WidthBits = uint(bitReader.ReadUint(4))
+	dirHead.HeightBits = uint(bitReader.ReadUint(4))
+	dirHead.OffsetXBits = uint(bitReader.ReadInt(4))
+	dirHead.OffsetYBits = uint(bitReader.ReadInt(4))
+	dirHead.OptionalBytesBits = uint(bitReader.ReadUint(4))
+	dirHead.CodedBytesBits = uint(bitReader.ReadUint(4))
 
-	dirHead.HasRawPixelEncoding, err = bitReader.ReadBool()
-	if err != nil {
-		return nil, err
-	}
-
-	dirHead.CompressEqualCells, err = bitReader.ReadBool()
-	if err != nil {
-		return nil, err
-	}
-
-	dirHead.Variable0Bits, err = bitReader.ReadUint32(4)
-	if err != nil {
-		return nil, err
-	}
-
-	dirHead.WidthBits, err = bitReader.ReadUint32(4)
-	if err != nil {
-		return nil, err
-	}
-
-	dirHead.HeightBits, err = bitReader.ReadUint32(4)
-	if err != nil {
-		return nil, err
-	}
-
-	dirHead.OffsetXBits, err = bitReader.ReadInt32(4)
-	if err != nil {
-		return nil, err
-	}
-
-	dirHead.OffsetYBits, err = bitReader.ReadInt32(4)
-	if err != nil {
-		return nil, err
-	}
-
-	dirHead.OptionalBytesBits, err = bitReader.ReadUint32(4)
-	if err != nil {
-		return nil, err
-	}
-
-	dirHead.CodedBytesBits, err = bitReader.ReadUint32(4)
-	if err != nil {
-		return nil, err
-	}
-
-	return &dirHead, nil
+	return &dirHead
 }
 
-func readFrameHeader(bitReader *streaming.BitReader, dirHead directionHeader) (*frameHeader, error) {
-	var (
-		frameHead frameHeader
-		err       error
-	)
+func readFrameHeader(bitReader *streaming.BitReader, dirHead directionHeader) *frameHeader {
+	var frameHead frameHeader
 
-	frameHead.Variable0, err = readPackedUint32(bitReader, int(dirHead.Variable0Bits))
-	if err != nil {
-		return nil, err
-	}
+	frameHead.Variable0 = uint(bitReader.ReadUintPacked(int(dirHead.Variable0Bits)))
+	frameHead.Width = uint(bitReader.ReadUintPacked(int(dirHead.WidthBits)))
+	frameHead.Height = uint(bitReader.ReadUintPacked(int(dirHead.HeightBits)))
+	frameHead.OffsetX = int(bitReader.ReadIntPacked(int(dirHead.OffsetXBits)))
+	frameHead.OffsetY = int(bitReader.ReadIntPacked(int(dirHead.OffsetYBits)))
+	frameHead.OptionalBytes = uint(bitReader.ReadUintPacked(int(dirHead.OptionalBytesBits)))
+	frameHead.CodedBytes = uint(bitReader.ReadUintPacked(int(dirHead.CodedBytesBits)))
+	frameHead.FrameBottomUp = bitReader.ReadBool()
 
-	frameHead.Width, err = readPackedUint32(bitReader, int(dirHead.WidthBits))
-	if err != nil {
-		return nil, err
-	}
-
-	frameHead.Height, err = readPackedUint32(bitReader, int(dirHead.HeightBits))
-	if err != nil {
-		return nil, err
-	}
-
-	frameHead.OffsetX, err = readPackedInt32(bitReader, int(dirHead.OffsetXBits))
-	if err != nil {
-		return nil, err
-	}
-
-	frameHead.OffsetY, err = readPackedInt32(bitReader, int(dirHead.OffsetYBits))
-	if err != nil {
-		return nil, err
-	}
-
-	frameHead.OptionalBytes, err = readPackedUint32(bitReader, int(dirHead.OptionalBytesBits))
-	if err != nil {
-		return nil, err
-	}
-
-	frameHead.CodedBytes, err = readPackedUint32(bitReader, int(dirHead.CodedBytesBits))
-	if err != nil {
-		return nil, err
-	}
-
-	frameHead.FrameBottomUp, err = bitReader.ReadBool()
-	if err != nil {
-		return nil, err
-	}
-
-	return &frameHead, nil
+	return &frameHead
 }
 
 func readDirection(reader io.ReadSeeker, fileHead fileHeader) error {
 	bitReader := streaming.NewBitReader(reader)
 
-	dirHead, err := readDirectionHeader(bitReader)
-	if err != nil {
-		return err
-	}
-
-	frameHead, err := readFrameHeader(bitReader, *dirHead)
-	if err != nil {
-		return err
-	}
+	dirHead := readDirectionHeader(bitReader)
+	frameHead := readFrameHeader(bitReader, *dirHead)
 
 	fmt.Printf("%+v\n", dirHead)
 	fmt.Printf("%+v\n", frameHead)
 
 	return nil
-}
-
-func readPackedInt32(reader *streaming.BitReader, packedSize int) (int32, error) {
-	width, err := unpackSize(packedSize)
-	if err != nil {
-		return 0, err
-	}
-
-	return reader.ReadInt32(width)
-}
-
-func readPackedUint32(reader *streaming.BitReader, packedSize int) (uint32, error) {
-	width, err := unpackSize(packedSize)
-	if err != nil {
-		return 0, err
-	}
-
-	return reader.ReadUint32(width)
-}
-
-func unpackSize(packedSize int) (int, error) {
-	sizes := []int{0, 1, 2, 4, 6, 8, 10, 12, 14, 16, 20, 24, 26, 28, 30, 32}
-	if packedSize >= len(sizes) {
-		return 0, errors.New("invalid packed size")
-	}
-
-	return sizes[packedSize], nil
 }
