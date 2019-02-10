@@ -55,14 +55,7 @@ func (r *BitReader) ReadInt64(count int) (int64, error) {
 		return 0, err
 	}
 
-	if count > 0 {
-		valueMasked := value &^ (1 << uint(count-1))
-		if valueMasked != value {
-			return -int64(valueMasked), nil
-		}
-	}
-
-	return int64(value), nil
+	return twosComplement(value, count), nil
 }
 
 func (r *BitReader) ReadUint64(count int) (uint64, error) {
@@ -71,26 +64,7 @@ func (r *BitReader) ReadUint64(count int) (uint64, error) {
 		return 0, err
 	}
 
-	var result uint64
-
-	remainder := count
-	for byteOffset := 0; remainder > 0; byteOffset++ {
-		bitsRead := 8 - bitOffset
-		if bitsRead > remainder {
-			bitsRead = remainder
-		}
-
-		bufferByte := buffer[byteOffset]
-		bufferByte >>= uint(bitOffset)
-		bufferByte &= ^(0xff << uint(bitsRead))
-
-		result |= (uint64(bufferByte) << uint(count-remainder))
-
-		remainder -= bitsRead
-		bitOffset = 0
-	}
-
-	return result, nil
+	return readBits(buffer, bitOffset, count), nil
 }
 
 func (r *BitReader) readBytes(count int) ([]byte, int, error) {
@@ -127,4 +101,37 @@ func (r *BitReader) readBytes(count int) ([]byte, int, error) {
 	r.tailByte = buffer[bytesNeeded-1]
 
 	return buffer, bitOffsetInByte, nil
+}
+
+func readBits(buffer []byte, bitOffset, count int) uint64 {
+	var result uint64
+
+	remainder := count
+	for byteOffset := 0; remainder > 0; byteOffset++ {
+		bitsRead := 8 - bitOffset
+		if bitsRead > remainder {
+			bitsRead = remainder
+		}
+
+		bufferByte := buffer[byteOffset]
+		bufferByte >>= uint(bitOffset)
+		bufferByte &= ^(0xff << uint(bitsRead))
+
+		result |= (uint64(bufferByte) << uint(count-remainder))
+
+		remainder -= bitsRead
+		bitOffset = 0
+	}
+
+	return result
+}
+
+func twosComplement(value uint64, bits int) int64 {
+	signMask := uint64(1 << uint(bits-1))
+	if value&signMask == 0 {
+		return int64(value &^ signMask)
+	} else {
+		valueMask := ^(^uint64(0) << uint(bits-1))
+		return -int64(valueMask & (^value + 1))
+	}
 }
