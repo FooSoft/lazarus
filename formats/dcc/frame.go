@@ -17,11 +17,6 @@ type frameHeader struct {
 	FrameBottomUp bool
 }
 
-type frame struct {
-	header frameHeader
-	bounds bounds
-}
-
 func readFrameHeader(bitReader *streaming.BitReader, dirHead directionHeader) (*frameHeader, error) {
 	var frameHead frameHeader
 
@@ -53,16 +48,56 @@ func readFrameHeader(bitReader *streaming.BitReader, dirHead directionHeader) (*
 	return &frameHead, nil
 }
 
-func readFrameHeaders(bitReader *streaming.BitReader, fileHead fileHeader, dirHead directionHeader) ([]frameHeader, error) {
-	var frameHeads []frameHeader
+func (h *frameHeader) bounds() box {
+	return box{
+		x1: int(h.OffsetX),
+		y1: int(h.OffsetY) - int(h.Height) + 1,
+		x2: int(h.OffsetX) + int(h.Width),
+		y2: int(h.OffsetY) + 1,
+	}
+}
+
+func readFrameHeaders(bitReader *streaming.BitReader, fileHead fileHeader, dirHead directionHeader) ([]frameHeader, box, error) {
+	var (
+		frameHeads []frameHeader
+		boundsAll  box
+	)
+
 	for i := 0; i < int(fileHead.FramesPerDir); i++ {
 		frameHead, err := readFrameHeader(bitReader, dirHead)
 		if err != nil {
-			return nil, err
+			return nil, box{}, err
+		}
+
+		bounds := frameHead.bounds()
+		if i == 0 {
+			boundsAll = bounds
+		} else {
+			if boundsAll.x1 > bounds.x1 {
+				boundsAll.x1 = bounds.x1
+			}
+			if boundsAll.y1 > bounds.y1 {
+				boundsAll.y1 = bounds.y1
+			}
+			if boundsAll.x2 < bounds.x2 {
+				boundsAll.x2 = bounds.x2
+			}
+			if boundsAll.y2 < bounds.y2 {
+				boundsAll.y2 = bounds.y2
+			}
 		}
 
 		frameHeads = append(frameHeads, *frameHead)
 	}
 
-	return frameHeads, nil
+	return frameHeads, boundsAll, nil
+}
+
+type frame struct {
+	header frameHeader
+}
+
+func newFrame(frameHead frameHeader, dirHead directionHeader) frame {
+	return frame{frameHead}
+
 }

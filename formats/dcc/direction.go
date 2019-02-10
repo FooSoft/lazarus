@@ -2,6 +2,7 @@ package dcc
 
 import (
 	"io"
+	"log"
 
 	"github.com/FooSoft/lazarus/streaming"
 )
@@ -48,41 +49,14 @@ func readDirection(reader io.ReadSeeker, fileHead fileHeader) (*direction, error
 		return nil, err
 	}
 
-	frameHeads, err := readFrameHeaders(bitReader, fileHead, *dirHead)
+	frameHeads, bounds, err := readFrameHeaders(bitReader, fileHead, *dirHead)
 	if err != nil {
 		return nil, err
 	}
 
-	var dirData direction
-	for i, frameHead := range frameHeads {
-		frameData := frame{
-			header: frameHead,
-			bounds: bounds{
-				x1: int(frameHead.OffsetX),
-				y1: int(frameHead.OffsetY) - int(frameHead.Height) + 1,
-				x2: int(frameHead.OffsetX) + int(frameHead.Width),
-				y2: int(frameHead.OffsetY) + 1,
-			},
-		}
-
-		dirData.frames = append(dirData.frames, frameData)
-
-		if i == 0 {
-			dirData.bounds = frameData.bounds
-		} else {
-			if dirData.bounds.x1 > frameData.bounds.x1 {
-				dirData.bounds.x1 = frameData.bounds.x1
-			}
-			if dirData.bounds.y1 > frameData.bounds.y1 {
-				dirData.bounds.y1 = frameData.bounds.y1
-			}
-			if dirData.bounds.x2 < frameData.bounds.x2 {
-				dirData.bounds.x2 = frameData.bounds.x2
-			}
-			if dirData.bounds.y2 < frameData.bounds.y2 {
-				dirData.bounds.y2 = frameData.bounds.y2
-			}
-		}
+	dirData := direction{bounds: bounds}
+	for _, frameHead := range frameHeads {
+		dirData.frames = append(dirData.frames, newFrame(frameHead, *dirHead))
 	}
 
 	var entries []pixelBufferEntry
@@ -97,13 +71,14 @@ func readDirection(reader io.ReadSeeker, fileHead fileHeader) (*direction, error
 		return nil, err
 	}
 
+	log.Println(dirData.bounds)
 	return &dirData, nil
 }
 
 type direction struct {
 	header directionHeader
 	frames []frame
-	bounds bounds
+	bounds box
 }
 
 func (d *direction) decodeStage1(bitReader *streaming.BitReader, entries []pixelBufferEntry) ([]pixelBufferEntry, error) {

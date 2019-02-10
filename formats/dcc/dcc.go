@@ -8,7 +8,7 @@ import (
 type Sprite struct {
 }
 
-type bounds struct {
+type box struct {
 	x1 int
 	y1 int
 	x2 int
