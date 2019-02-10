@@ -28,26 +28,26 @@ type fileHeader struct {
 }
 
 type directionHeader struct {
-	CodedSize           uint
+	CodedSize           uint32
 	HasRawPixelEncoding bool
 	CompressEqualCells  bool
-	Variable0Bits       uint
-	WidthBits           uint
-	HeightBits          uint
-	OffsetXBits         uint
-	OffsetYBits         uint
-	OptionalBytesBits   uint
-	CodedBytesBits      uint
+	Variable0Bits       uint8
+	WidthBits           uint8
+	HeightBits          uint8
+	OffsetXBits         uint8
+	OffsetYBits         uint8
+	OptionalBytesBits   uint8
+	CodedBytesBits      uint8
 }
 
 type frameHeader struct {
-	Variable0     uint
-	Width         uint
-	Height        uint
-	OffsetX       int
-	OffsetY       int
-	OptionalBytes uint
-	CodedBytes    uint
+	Variable0     uint32
+	Width         uint32
+	Height        uint32
+	OffsetX       int32
+	OffsetY       int32
+	OptionalBytes uint32
+	CodedBytes    uint32
 	FrameBottomUp bool
 	Extents       extents
 }
@@ -88,16 +88,16 @@ func NewFromReader(reader io.ReadSeeker) (*Sprite, error) {
 func readDirectionHeader(bitReader *streaming.BitReader) *directionHeader {
 	var dirHead directionHeader
 
-	dirHead.CodedSize = uint(bitReader.ReadUint(32))
+	dirHead.CodedSize = uint32(bitReader.ReadUint(32))
 	dirHead.HasRawPixelEncoding = bitReader.ReadBool()
 	dirHead.CompressEqualCells = bitReader.ReadBool()
-	dirHead.Variable0Bits = uint(bitReader.ReadUint(4))
-	dirHead.WidthBits = uint(bitReader.ReadUint(4))
-	dirHead.HeightBits = uint(bitReader.ReadUint(4))
-	dirHead.OffsetXBits = uint(bitReader.ReadInt(4))
-	dirHead.OffsetYBits = uint(bitReader.ReadInt(4))
-	dirHead.OptionalBytesBits = uint(bitReader.ReadUint(4))
-	dirHead.CodedBytesBits = uint(bitReader.ReadUint(4))
+	dirHead.Variable0Bits = uint8(bitReader.ReadUint(4))
+	dirHead.WidthBits = uint8(bitReader.ReadUint(4))
+	dirHead.HeightBits = uint8(bitReader.ReadUint(4))
+	dirHead.OffsetXBits = uint8(bitReader.ReadInt(4))
+	dirHead.OffsetYBits = uint8(bitReader.ReadInt(4))
+	dirHead.OptionalBytesBits = uint8(bitReader.ReadUint(4))
+	dirHead.CodedBytesBits = uint8(bitReader.ReadUint(4))
 
 	return &dirHead
 }
@@ -105,13 +105,13 @@ func readDirectionHeader(bitReader *streaming.BitReader) *directionHeader {
 func readFrameHeader(bitReader *streaming.BitReader, dirHead directionHeader) *frameHeader {
 	var frameHead frameHeader
 
-	frameHead.Variable0 = uint(bitReader.ReadUintPacked(int(dirHead.Variable0Bits)))
-	frameHead.Width = uint(bitReader.ReadUintPacked(int(dirHead.WidthBits)))
-	frameHead.Height = uint(bitReader.ReadUintPacked(int(dirHead.HeightBits)))
-	frameHead.OffsetX = int(bitReader.ReadIntPacked(int(dirHead.OffsetXBits)))
-	frameHead.OffsetY = int(bitReader.ReadIntPacked(int(dirHead.OffsetYBits)))
-	frameHead.OptionalBytes = uint(bitReader.ReadUintPacked(int(dirHead.OptionalBytesBits)))
-	frameHead.CodedBytes = uint(bitReader.ReadUintPacked(int(dirHead.CodedBytesBits)))
+	frameHead.Variable0 = uint32(bitReader.ReadUintPacked(int(dirHead.Variable0Bits)))
+	frameHead.Width = uint32(bitReader.ReadUintPacked(int(dirHead.WidthBits)))
+	frameHead.Height = uint32(bitReader.ReadUintPacked(int(dirHead.HeightBits)))
+	frameHead.OffsetX = int32(bitReader.ReadIntPacked(int(dirHead.OffsetXBits)))
+	frameHead.OffsetY = int32(bitReader.ReadIntPacked(int(dirHead.OffsetYBits)))
+	frameHead.OptionalBytes = uint32(bitReader.ReadUintPacked(int(dirHead.OptionalBytesBits)))
+	frameHead.CodedBytes = uint32(bitReader.ReadUintPacked(int(dirHead.CodedBytesBits)))
 	frameHead.FrameBottomUp = bitReader.ReadBool()
 
 	return &frameHead
