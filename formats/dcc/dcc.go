@@ -121,7 +121,14 @@ func readDirection(reader io.ReadSeeker, fileHead fileHeader) error {
 	bitReader := streaming.NewBitReader(reader)
 
 	dirHead := readDirectionHeader(bitReader)
+	if err := bitReader.Error(); err != nil {
+		return err
+	}
+
 	frameHead := readFrameHeader(bitReader, *dirHead)
+	if err := bitReader.Error(); err != nil {
+		return err
+	}
 
 	fmt.Printf("%+v\n", dirHead)
 	fmt.Printf("%+v\n", frameHead)
