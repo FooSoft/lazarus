@@ -49,14 +49,14 @@ func readDirection(reader io.ReadSeeker, fileHead fileHeader) (*direction, error
 		return nil, err
 	}
 
-	frameHeads, bounds, err := readFrameHeaders(bitReader, fileHead, *dirHead)
+	frameHeads, dirBounds, err := readFrameHeaders(bitReader, fileHead, *dirHead)
 	if err != nil {
 		return nil, err
 	}
 
-	dirData := direction{bounds: bounds}
+	dirData := direction{bounds: dirBounds}
 	for _, frameHead := range frameHeads {
-		dirData.frames = append(dirData.frames, newFrame(frameHead, *dirHead))
+		dirData.frames = append(dirData.frames, newFrame(frameHead, dirBounds))
 	}
 
 	var entries []pixelBufferEntry

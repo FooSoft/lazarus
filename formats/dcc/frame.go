@@ -95,9 +95,83 @@ func readFrameHeaders(bitReader *streaming.BitReader, fileHead fileHeader, dirHe
 
 type frame struct {
 	header frameHeader
+
+	nbCellsX   int
+	nbCellsY   int
+	dirOffsetX int
+	dirOffsetY int
+
+	cellSameAsPrevious []bool
+	cellWidths         []int
+	cellHeights        []int
+
+	data []byte
 }
 
-func newFrame(frameHead frameHeader, dirHead directionHeader) frame {
-	return frame{frameHead}
+func newFrame(frameHead frameHeader, dirBounds box) frame {
+	frameBounds := frameHead.bounds()
+
+	frameData := frame{
+		header:     frameHead,
+		dirOffsetX: frameBounds.x1 - dirBounds.x1,
+		dirOffsetY: frameBounds.y1 - dirBounds.y1,
+	}
+
+	widthFirstColumn := 4 - frameData.dirOffsetX%4
+	frameWidth := frameBounds.x2 - frameBounds.x1
+	if frameWidth-widthFirstColumn <= 1 {
+		frameData.nbCellsX = 1
+	} else {
+		temp := frameWidth - widthFirstColumn - 1
+		frameData.nbCellsX = 2 + temp/4
+		if temp%4 == 0 {
+			frameData.nbCellsX--
+		}
+	}
+
+	heightFirstRow := 4 - frameData.dirOffsetY%4
+	frameHeight := frameBounds.y2 - frameBounds.y1
+	if frameHeight-heightFirstRow <= 1 {
+		frameData.nbCellsY = 1
+	} else {
+		temp := frameHeight - heightFirstRow - 1
+		frameData.nbCellsY = 2 + temp/4
+		if temp%4 == 0 {
+			frameData.nbCellsY--
+		}
+	}
+
+	frameData.cellWidths = make([]int, frameData.nbCellsX)
+	for i := range frameData.cellWidths {
+		frameData.cellWidths[i] = 4
+	}
+
+	if frameData.nbCellsX == 1 {
+		frameData.cellWidths[0] = frameWidth
+	} else {
+		frameData.cellWidths[0] = widthFirstColumn
+		nbColumnsExcludingFirstAndLast := frameData.nbCellsX - 2
+		widthExcludingFirstAndLastColumns := 4 * nbColumnsExcludingFirstAndLast
+		frameData.cellWidths[frameData.nbCellsX-1] = frameWidth - (widthFirstColumn + widthExcludingFirstAndLastColumns)
+	}
+
+	frameData.cellHeights = make([]int, frameData.nbCellsY)
+	for i := range frameData.cellHeights {
+		frameData.cellHeights[i] = 4
+	}
+
+	if frameData.nbCellsY == 1 {
+		frameData.cellHeights[0] = frameHeight
+	} else {
+		frameData.cellHeights[0] = heightFirstRow
+		nbRowsExcludingFirstAndLast := frameData.nbCellsY - 2
+		heightExcludingFirstAndLastRows := 4 * nbRowsExcludingFirstAndLast
+		frameData.cellHeights[frameData.nbCellsY-1] = frameHeight - (heightFirstRow + heightExcludingFirstAndLastRows)
+	}
+
+	frameData.cellSameAsPrevious = make([]bool, frameData.nbCellsX*frameData.nbCellsY)
+	frameData.data = make([]byte, frameWidth*frameHeight)
+
+	return frameData
 
 }
