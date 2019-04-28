@@ -18,11 +18,11 @@ Lazarus is primarily being developed on Fedora, but the required package names a
 
 1.  Install the required packages (for [Fedora](https://getfedora.org/) users):
     ```
-    # sudo dnf install golang gcc-c++ cmake make git SDL2-devel mesa-libGL-devel zlib-devel bzip2-devel
+    # dnf install golang gcc-c++ cmake make git SDL2-devel mesa-libGL-devel zlib-devel bzip2-devel
     ```
     Install the required packages (for [Ubuntu](https://www.ubuntu.com/) users):
     ```
-    # sudo apt-get install golang g++ cmake make git libsdl2-dev libgl1-mesa-dev zlib1g-dev libbz2-dev
+    # apt-get install golang g++ cmake make git libsdl2-dev libgl1-mesa-dev zlib1g-dev libbz2-dev
     ```
 2.  Build the [Dear ImGui](https://github.com/ocornut/imgui) wrapper package:
     ```
