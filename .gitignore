@@ -1,3 +1,4 @@
+*.mpq
+.ccls-cache
 asset
 imgui.ini
-*.mpq

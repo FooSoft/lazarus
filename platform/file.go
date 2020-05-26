@@ -44,7 +44,7 @@ func FileMountArchive(mountPath, archivePath string) error {
 func FileUnmountArchive(mountPath string) error {
 	archive, ok := fileState.mountPoints[mountPath]
 	if !ok {
-		return errors.New("file archive is nout mounted")
+		return errors.New("file archive is not mounted")
 	}
 
 	var paths []string
