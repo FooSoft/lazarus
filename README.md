@@ -63,6 +63,8 @@ Lazarus is only tested on Windows 10, but should in theory run on anything newer
 5.  Build the [Dear ImGui](https://github.com/ocornut/imgui) wrapper package (using the system command prompt):
     ```
     $ go get github.com/FooSoft/lazarus/platform/imgui
+    
+    # note: You may also need to do `set GO111MODULE=off` if you find your %GOPATH% dir has no src/ folder
     ```
     Go will fetch the code, but Cgo will fail to link the [cimgui](https://github.com/cimgui/cimgui) wrapper;
     we need to configure and build it:
