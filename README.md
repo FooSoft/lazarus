@@ -1,18 +1,28 @@
-# Lazarus #
+<!-- +++
+Area  = "projects"
+GitHub = "lazarus"
+Layout = "page"
+Tags  = ["lazarus", "golang", "cpp", "games", "msys2", "diablo", "imgui", "stormlib", "mit license"]
+Title = "Lazarus"
+Description = "Modern reimplementation of the Diablo 2 engine."
+Collection = "ProjectsAbandoned"
++++ -->
+
+# Lazarus
 
 The Lazarus project aims to preserve [Diablo II](https://en.wikipedia.org/wiki/Diablo_II) by reimplementing the game
 engine in the Go programming language. Lazarus is a drop-in replacement for the original game executable; the user is
 responsible for supplying the game assets (namely the MPQ files) from the official game media.
 
-![](https://foosoft.net/projects/lazarus/img/viewer.png)
+![](img/viewer.png)
 
-## Building ##
+## Building
 
 It is not currently possible to use `go get` to install all of the packages in the project in one step; some assembly is
 required. Follow the instructions below to set up a build environment from a fresh install of your 64-bit operating
 system of choice.
 
-### Linux ###
+### Linux
 
 Lazarus is primarily being developed on Fedora, but the required package names are also provided for Ubuntu.
 
@@ -49,7 +59,7 @@ Lazarus is primarily being developed on Fedora, but the required package names a
     ```
     You should now have a `libstorm.a` statically linked library in the `stormlib` directory.
 
-### Windows ###
+### Windows
 
 Lazarus is only tested on Windows 10, but should in theory run on anything newer than Windows XP.
 
@@ -85,13 +95,13 @@ Lazarus is only tested on Windows 10, but should in theory run on anything newer
     ```
     You should now have a `libstorm.a` statically linked library in the `stormlib` directory.
 
-## Tools ##
+## Tools
 
 This project includes several tools which are used to demonstrate the capabilities of the engine as well as manipulate
 game data for debugging purposes. Make sure to perform the setup steps outlined in the "Building" section before
 installing these packages.
 
-### `dc6` ###
+### `dc6`
 
 Converts the frames of one or more DC6 animations to PNG files, using the provided palette file.
 
@@ -108,7 +118,7 @@ Converts the frames of one or more DC6 animations to PNG files, using the provid
             target directory (default ".")
     ```
 
-### `mpq` ###
+### `mpq`
 
 Extracts the contents of one or more MPQ archives to a target directory, using an optional filter.
 
@@ -127,7 +137,7 @@ Extracts the contents of one or more MPQ archives to a target directory, using a
             target directory (default ".")
     ```
 
-### `viewer` ###
+### `viewer`
 
 Displays the frames of DC6 animation files, using the provided palette file. A grayscale fallback palette is used if no
 palette is provided on the command line.
