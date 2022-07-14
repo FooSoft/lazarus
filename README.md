@@ -1,13 +1,3 @@
-<!-- +++
-Area  = "projects"
-GitHub = "lazarus"
-Layout = "page"
-Tags  = ["lazarus", "golang", "cpp", "games", "msys2", "diablo", "imgui", "stormlib", "mit license"]
-Title = "Lazarus"
-Description = "Modern reimplementation of the Diablo 2 engine."
-Collection = "ProjectsAbandoned"
-+++ -->
-
 # Lazarus
 
 The Lazarus project aims to preserve [Diablo II](https://en.wikipedia.org/wiki/Diablo_II) by reimplementing the game
